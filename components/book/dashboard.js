@@ -50,7 +50,7 @@ export default function BookDashboard() {
 		return (
 			<>
 				{directoryStatus ? (
-					<div className="ml-20 flex min-h-screen  flex-wrap items-center  justify-between gap-y-2.5  py-2">
+					<div className="ml-20 flex min-h-screen  flex-wrap items-center   justify-between gap-y-2.5  py-2">
 						{imageData.map((data, index) => (
 							<BookCover
 								className="py-4"
@@ -64,7 +64,7 @@ export default function BookDashboard() {
 				) : (
 					<div className="flex justify-center min-h-screen ml-20 ">
 						<div className="flex items-center ">
-							<div className="flex flex-col justify-around text-black bg-gray-300 rounded-md h-4/5 w-80 ">
+							<div className="flex flex-col justify-around text-black bg-white rounded-md h-4/5 w-80 ">
 								<div className="flex flex-col items-center justify-center ">
 									<div className="px-4 py-4 m-2 text-center bg-gray-400 rounded-md">
 										Please configure your book directory:

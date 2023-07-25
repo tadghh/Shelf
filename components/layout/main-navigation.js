@@ -11,29 +11,31 @@ export default function MainNavigation({ children = null }) {
 		<>
 			<div>
 				<div className="fixed inset-y-0 z-50 flex flex-col w-16 duration-500 ease-in-out transition-width hover:w-60">
-					<div className="flex flex-col px-5 text-transparent transition-colors duration-300 ease-in-out bg-gray-900 rounded-r-lg hover:duration-700 hover:text-white grow gap-y-5">
-						<nav className="flex flex-col flex-1 pt-8 ">
-							<ul role="list">
+					<div className="flex flex-col text-transparent transition-colors duration-200 ease-in-out bg-white rounded-r-lg hover:text-black hover:duration-700 grow gap-y-5">
+						<nav className="flex flex-col flex-1 pt-8 navbar-icon">
+						<ul className="" role="list">
 								{navigation.map((item) => (
-									<li key={item.name} className="flex ">
-										<item.icon
-											className="w-6 text-white shrink-0"
-											aria-hidden="true"
-										/>
-										<Link
-											href={item.href}
-											className="flex p-2 text-sm font-semibold leading-6 rounded-md text-inherit hover:bg-gray-800 group gap-x-3"
-										>
-											{item.name}
-										</Link>
-									</li>
+								<li key={item.name} className="flex items-center p-2 ">
+								<div className="relative w-16"> {/* Wrapper element with relative positioning */}
+									<item.icon
+									className="absolute inset-0 w-5.5 h-6 m-auto ml-3  text-black transition-width duration-600"
+									aria-hidden="true"
+									/>
+								</div>
+								<Link
+								href={item.href}
+									className="w-full mx-auto font-semibold leading-6 text-center ease-out duration-250"
+								>
+ 								{item.name}
+								</Link>
+                                 </li>
 								))}
 							</ul>
 						</nav>
 					</div>
 				</div>
 
-				<main className="bg-white">{children}</main>
+				<main className="bg-black">{children}</main>
 			</div>
 		</>
 	);
