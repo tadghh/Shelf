@@ -9,8 +9,8 @@ export default function Settings() {
   useEffect(() => {
     async function loadEnum() {
       setSettingsItemsEnum(await SettingsItems());
-      setItemLoaded(true);
     }
+    loadEnum();
   }, []);
 
   return (
