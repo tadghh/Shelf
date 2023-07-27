@@ -119,7 +119,6 @@ pub fn get_configuration_option(option_name: String) -> Option<String> {
         .to_string_lossy()
         .replace('\\', "/");
     let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
-    println!("{:?}", &settings_path);
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -134,9 +133,15 @@ pub fn get_configuration_option(option_name: String) -> Option<String> {
 
         if line_content.starts_with(&option_name) {
             let split: Vec<&str> = line_content.split('=').collect();
+
+            //Settings option not set
+            if split[1] == "" {
+                return None;
+            }
+            //"Valid" Option
             return Some(split[1].to_string());
         }
     }
-    change_configuration_option(option_name, "null".to_string());
- None
+    //Settings option missing
+    None
 }
