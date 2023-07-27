@@ -1,14 +1,26 @@
-use std::{path::Path, time::Instant, env, fs::{self, OpenOptions, File}, io::BufReader};
 use epub::doc::EpubDoc;
+use std::{
+    env,
+    fs::{ self, File, OpenOptions },
+    io::BufReader,
+    path::Path,
+    sync::{ atomic::{ AtomicUsize, Ordering }, Arc, Mutex },
+    time::Instant,
+};
 
-use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::{ IntoParallelRefIterator, ParallelIterator };
 
-use crate::{shelf::{get_configuration_option, get_cover_image_folder_name, get_cache_file_name}, book::{BOOK_JSON, util::chunk_binary_search_index}};
+use crate::{
+    book::{ util::chunk_binary_search_index, BOOK_JSON },
+    shelf::{
+        get_cache_file_name,
+        get_configuration_option,
+        get_cover_image_folder_name,
+        get_settings_name,
+    },
+};
 
-use super::{Book, create_cover};
-
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use super::{ create_cover, Book };
 
 //Checks if a directory exists and if not its path is created
 fn create_directory(path: &String, new_folder_name: &str) -> String {
@@ -20,7 +32,24 @@ fn create_directory(path: &String, new_folder_name: &str) -> String {
     }
     return created_dir.to_string_lossy().replace('\\', "/");
 }
+pub fn get_home_dir() -> String {
+    match env::current_dir() {
+        Ok(dir) => dir.to_string_lossy().replace('\\', "/").to_string(),
+        Err(_) => String::new(), // Return an empty string as a default value
+    }
+}
 
+pub fn create_default_settings_file() {
+    let home_dir = get_home_dir();
+    let settings_path = format!("{}/{}", home_dir, get_settings_name());
+
+    // Check if the file already exists
+    if fs::metadata(&settings_path).is_err() {
+        // File doesn't exist, create an empty one
+        let file = File::create(&settings_path).expect("Failed to create settings file");
+        drop(file); // Close the file immediately after creating it
+    }
+}
 //This creates the vector to be written to the json file
 pub fn create_book_vec(items: &Vec<String>, write_directory: &String) -> Vec<Book> {
     let books: Vec<Book> = items
@@ -52,20 +81,19 @@ pub fn create_covers() -> Option<Vec<Book>> {
 
     let mut book_json: Vec<Book>;
     //Get working  directory
-    let home_dir = &env::current_dir()
-        .unwrap()
-        .to_string_lossy()
-        .replace('\\', "/");
+    let home_dir = &env::current_dir().unwrap().to_string_lossy().replace('\\', "/");
 
     let json_path = format!("{}/{}", &home_dir, get_cache_file_name());
     let dir = match get_configuration_option("book_folder_location".to_string()) {
         Some(val) => val,
-        None =>  return None,
+        None => {
+            return None;
+        }
     };
 
-
     //Load epubs from the provided directory in the frontend, currently the dashboards component
-    let epubs: Vec<String> = fs::read_dir(&dir)
+    let epubs: Vec<String> = fs
+        ::read_dir(&dir)
         .unwrap()
         .filter_map(|entry| {
             let path = entry.unwrap().path();
@@ -78,10 +106,7 @@ pub fn create_covers() -> Option<Vec<Book>> {
         .collect();
 
     let cache_directory = create_directory(home_dir, "cache");
-    let covers_directory = create_directory(
-        &cache_directory,
-        get_cover_image_folder_name(),
-    );
+    let covers_directory = create_directory(&cache_directory, get_cover_image_folder_name());
 
     unsafe {
         if BOOK_JSON.json_path != json_path {
@@ -90,12 +115,7 @@ pub fn create_covers() -> Option<Vec<Book>> {
     }
 
     if Path::new(&json_path).exists() {
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(&json_path);
-        println!("{:?}", json_path);
+        let file = OpenOptions::new().read(true).write(true).create(true).open(&json_path);
 
         book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
             Ok(data) => data,
@@ -104,16 +124,13 @@ pub fn create_covers() -> Option<Vec<Book>> {
 
         let current_length = &book_json.len();
 
-        if current_length != &epubs.len(){
+        if current_length != &epubs.len() {
             let book_json_len = Arc::new(AtomicUsize::new(book_json.len()));
             let book_json_test = Arc::new(Mutex::new(book_json));
 
             epubs.par_iter().for_each(|item| {
                 let item_normalized = item.replace('\\', "/");
-                let title = EpubDoc::new(&item_normalized)
-                    .unwrap()
-                    .mdata("title")
-                    .unwrap();
+                let title = EpubDoc::new(&item_normalized).unwrap().mdata("title").unwrap();
                 println!("{}", title);
                 let mut book_json_guard = book_json_test.lock().unwrap();
                 let index = chunk_binary_search_index(&book_json_guard, &title);
@@ -121,21 +138,20 @@ pub fn create_covers() -> Option<Vec<Book>> {
                     Some(index) => {
                         println!("cover");
                         let new_book = Book {
-                            cover_location: create_cover(item_normalized.to_string(), &covers_directory),
+                            cover_location: create_cover(
+                                item_normalized.to_string(),
+                                &covers_directory
+                            ),
                             book_location: item_normalized,
                             title,
                         };
                         book_json_guard.insert(index, new_book);
                         book_json_len.fetch_sub(1, Ordering::SeqCst);
                     }
-                    None => println!("There was no index")
+                    None => println!("There was no index"),
                 }
-
             });
-            book_json = Arc::try_unwrap(book_json_test)
-            .unwrap()
-            .into_inner()
-            .unwrap();
+            book_json = Arc::try_unwrap(book_json_test).unwrap().into_inner().unwrap();
             let final_length = book_json_len.load(Ordering::SeqCst);
 
             if book_json.len() != final_length {
@@ -149,7 +165,7 @@ pub fn create_covers() -> Option<Vec<Book>> {
     if file_changes {
         let file = File::create(json_path).expect("JSON path should be defined, and a valid path");
 
-        serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist")
+        serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist");
     }
 
     let elapsed_time = start_time.elapsed();
