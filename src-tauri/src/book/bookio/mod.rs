@@ -10,9 +10,6 @@ use super::{Book, create_cover};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-
-//
-
 //Checks if a directory exists and if not its path is created
 fn create_directory(path: &String, new_folder_name: &str) -> String {
     let created_dir = Path::new(&path).join(new_folder_name);
@@ -49,9 +46,6 @@ pub fn create_book_vec(items: &Vec<String>, write_directory: &String) -> Vec<Boo
 
 #[tauri::command]
 pub fn create_covers() -> Option<Vec<Book>> {
-
-
-    //file name to long
     let start_time = Instant::now();
 
     let mut file_changes = false;
@@ -82,7 +76,6 @@ pub fn create_covers() -> Option<Vec<Book>> {
             }
         })
         .collect();
-        println!("{} epubs",epubs.len());
 
     let cache_directory = create_directory(home_dir, "cache");
     let covers_directory = create_directory(

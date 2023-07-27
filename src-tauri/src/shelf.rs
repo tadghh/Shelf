@@ -1,8 +1,11 @@
-use std::{collections::HashMap, fs::OpenOptions};
+use std::{collections::HashMap, fs::OpenOptions,
+    io::{BufRead, BufReader, Seek, SeekFrom, Write},
+    env
+};
 use serde::{Deserialize, Serialize};
-use std::env;
-use std::io::{BufRead, BufReader, Seek, SeekFrom, Write};
 
+
+static mut SETTINGS_MAP: Option<HashMap<String, String>> = None;
 
 static CACHE_FILE_NAME: &str = "book_cache.json";
 static SETTINGS_FILE_NAME: &str = "shelf_settings.conf";
@@ -65,83 +68,149 @@ fn shelf_setup() {
     shelf_settings_health();
     //if it does load it?
 }
-#[tauri::command(rename_all = "snake_case")]
-pub fn change_configuration_option(option_name: String, value: String) {
-    let home_dir = &env::current_dir()
-        .unwrap()
-        .to_string_lossy()
-        .replace('\\', "/");
-    let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
+// #[tauri::command(rename_all = "snake_case")]
+// pub fn change_configuration_option(option_name: String, value: String) {
+//     let home_dir = get_home_dir();
+//     let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
 
-    let mut file = OpenOptions::new()
-        .create(true)
-        .read(true)
-        .write(true)
-        .open(&settings_path)
-        .unwrap();
+//     let mut file = OpenOptions::new()
+//         .create(true)
+//         .read(true)
+//         .write(true)
+//         .open(&settings_path)
+//         .unwrap();
 
-    let mut lines = Vec::new();
-    let mut updated = false;
+//     let mut lines = Vec::new();
+//     let mut updated = false;
 
-    let reader = BufReader::new(&file);
+//     let reader = BufReader::new(&file);
 
-    for line in reader.lines() {
-        let line_content = line.unwrap();
-        // println!("{:?} bull", &line_content);
-        if line_content.starts_with(&option_name) {
-            let updated_line = format!("{}={}", option_name, value);
-            lines.push(updated_line);
-            updated = true;
-        } else {
-            lines.push(line_content);
+//     for line in reader.lines() {
+//         let line_content = line.unwrap();
+//         // println!("{:?} bull", &line_content);
+//         if line_content.starts_with(&option_name) {
+//             let updated_line = format!("{}={}", option_name, value);
+//             lines.push(updated_line);
+//             updated = true;
+//         } else {
+//             lines.push(line_content);
+//         }
+//     }
+
+//     if !updated {
+//         let new_line = format!("{}={}", option_name, value);
+//         lines.push(new_line);
+//     }
+
+//     let new_contents = lines.join("\n");
+//     let new_length = new_contents.len() as u64;
+
+//     file.seek(SeekFrom::Start(0)).unwrap();
+//     file.set_len(0).unwrap();
+//     file.write_all(new_contents.as_bytes()).unwrap();
+//     file.set_len(new_length).unwrap();
+// }
+
+// #[tauri::command(rename_all = "snake_case")]
+// pub fn get_configuration_option(option_name: String) -> Option<String> {
+//     //todo: when program first runs we should look for files like this and create them
+//     let home_dir = get_home_dir();
+//     let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
+//     let file = OpenOptions::new()
+//         .read(true)
+//         .write(true)
+//         .create(true)
+//         .open(&settings_path)
+//         .expect("The settings file should exist");
+
+//     let reader = BufReader::new(&file);
+
+//     for line in reader.lines() {
+//         let line_content = line.unwrap();
+
+//         if line_content.starts_with(&option_name) {
+//             let split: Vec<&str> = line_content.split('=').collect();
+
+//             //Settings option not set
+//             if split[1] == "" {
+//                 return None;
+//             }
+//             //"Valid" Option
+//             return Some(split[1].to_string());
+//         }
+//     }
+//     //Settings option missing
+//     None
+// }
+fn load_settings_into_memory() {
+    unsafe {
+        if SETTINGS_MAP.is_none() {
+            let home_dir = get_home_dir();
+            let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
+            let file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(&settings_path)
+                .expect("The settings file should exist");
+
+            let reader = BufReader::new(&file);
+
+            let mut settings_map = HashMap::new();
+            for line in reader.lines() {
+                let line_content = line.unwrap();
+                let split: Vec<&str> = line_content.split('=').collect();
+                if split.len() == 2 {
+                    settings_map.insert(split[0].to_string(), split[1].to_string());
+                }
+            }
+
+            SETTINGS_MAP = Some(settings_map);
         }
     }
-
-    if !updated {
-        let new_line = format!("{}={}", option_name, value);
-        lines.push(new_line);
-    }
-
-    let new_contents = lines.join("\n");
-    let new_length = new_contents.len() as u64;
-
-    file.seek(SeekFrom::Start(0)).unwrap();
-    file.set_len(0).unwrap();
-    file.write_all(new_contents.as_bytes()).unwrap();
-    file.set_len(new_length).unwrap();
 }
-
 #[tauri::command(rename_all = "snake_case")]
 pub fn get_configuration_option(option_name: String) -> Option<String> {
-    //todo: when program first runs we should look for files like this and create them
-    let home_dir = &env::current_dir()
-        .unwrap()
-        .to_string_lossy()
-        .replace('\\', "/");
-    let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open(&settings_path)
-        .expect("The settings file should exist");
+    load_settings_into_memory();
+    unsafe {
+        SETTINGS_MAP.as_ref().and_then(|map| map.get(&option_name).cloned())
+    }
+}
+#[tauri::command(rename_all = "snake_case")]
+pub fn change_configuration_option(option_name: String, value: String) {
+    load_settings_into_memory();
+    unsafe {
+        if let Some(map) = &mut SETTINGS_MAP {
+            map.insert(option_name.clone(), value.clone());
 
-    let reader = BufReader::new(&file);
+            let home_dir = get_home_dir();
+            let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
+            let mut file = OpenOptions::new()
+                .create(true)
+                .read(true)
+                .write(true)
+                .open(&settings_path)
+                .unwrap();
 
-    for line in reader.lines() {
-        let line_content = line.unwrap();
-
-        if line_content.starts_with(&option_name) {
-            let split: Vec<&str> = line_content.split('=').collect();
-
-            //Settings option not set
-            if split[1] == "" {
-                return None;
+            let mut lines = Vec::new();
+            for (key, val) in map.iter() {
+                let line = format!("{}={}", key, val);
+                lines.push(line);
             }
-            //"Valid" Option
-            return Some(split[1].to_string());
+
+            let new_contents = lines.join("\n");
+            let new_length = new_contents.len() as u64;
+
+            file.seek(SeekFrom::Start(0)).unwrap();
+            file.set_len(0).unwrap();
+            file.write_all(new_contents.as_bytes()).unwrap();
+            file.set_len(new_length).unwrap();
         }
     }
-    //Settings option missing
-    None
+}
+fn get_home_dir() -> String {
+    match env::current_dir() {
+        Ok(dir) => dir.to_string_lossy().replace('\\', "/").to_string(),
+        Err(_) => String::new(), // Return an empty string as a default value
+    }
 }
