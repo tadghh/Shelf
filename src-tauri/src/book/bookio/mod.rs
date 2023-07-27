@@ -2,7 +2,7 @@ use epub::doc::EpubDoc;
 use std::{
     env,
     fs::{ self, File, OpenOptions },
-    io::BufReader,
+    io::{ BufReader, Write },
     path::Path,
     sync::{ atomic::{ AtomicUsize, Ordering }, Arc, Mutex },
     time::Instant,
@@ -45,9 +45,23 @@ pub fn create_default_settings_file() {
 
     // Check if the file already exists
     if fs::metadata(&settings_path).is_err() {
-        // File doesn't exist, create an empty one
-        let file = File::create(&settings_path).expect("Failed to create settings file");
-        drop(file); // Close the file immediately after creating it
+        // File doesn't exist, create a new one with default values
+        let default_settings =
+            r#"
+            book_folder_location=E:/Books/Book/Epub
+            endless_scroll=false
+        "#;
+
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&settings_path)
+            .expect("Failed to create settings file");
+
+        file.write_all(default_settings.as_bytes()).expect(
+            "Failed to write default settings to file"
+        );
     }
 }
 //This creates the vector to be written to the json file

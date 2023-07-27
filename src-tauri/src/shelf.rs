@@ -1,12 +1,12 @@
-use serde::{Deserialize, Serialize};
+use serde::{ Deserialize, Serialize };
 use std::{
     collections::HashMap,
     env,
-    fs::OpenOptions,
-    io::{BufRead, BufReader, Seek, SeekFrom, Write},
+    fs::{ OpenOptions, self },
+    io::{ BufRead, BufReader, Seek, SeekFrom, Write },
 };
 
-use crate::book::bookio::{create_default_settings_file, get_home_dir};
+use crate::book::bookio::{ create_default_settings_file, get_home_dir };
 
 static mut SETTINGS_MAP: Option<HashMap<String, String>> = None;
 
@@ -22,51 +22,34 @@ pub fn get_cache_file_name() -> &'static str {
 pub fn get_settings_name() -> &'static str {
     SETTINGS_FILE_NAME
 }
-#[derive(Serialize, Deserialize, Debug)]
-enum Settings {
-    EndlessScroll,
-    BookLocation,
+
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash)]
+enum ValueItem {
+    String(String),
+    Bool(bool),
 }
+
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Hash)]
+pub struct SettingsItem {
+    item_key: String,
+    default_value: ValueItem,
+}
+
 #[tauri::command]
 pub fn shelf_settings_health() -> HashMap<String, String> {
-    // this is making me sad
-    //I have a list of keys I will know exist
-    // I know what type these keys should be
-    enum ValueItem {
-        String(String),
-        Bool(bool),
-        Float(f64),
-    }
-    struct SettingsItem {
-        item_key: String,
-        default_value: ValueItem,
-    }
-    let expected_keys = vec![
-        SettingsItem {
-            item_key: "book_folder_location".to_string(),
-            default_value: ValueItem::String("E:\\Books\\Book\\Epub".to_string()),
-        },
-        SettingsItem {
-            item_key: "endless_scroll".to_string(),
-            default_value: ValueItem::Bool(false),
-        },
+    let expected_keys: Vec<(String, String)> = vec![
+        ("BOOK_LOCATION".to_string(), "book_folder_location".to_string()),
+        ("ENDLESS_SCROLL".to_string(), "endless_scroll".to_string())
+        // Add more settings names here as needed
     ];
-    //check if settings file exists
-    // Oh theres a file? lets verify the values
-    // map over the file comparing agaisnt expected keys
-    // if the value is good leave it otherwise use the default
-    //if not create it
-    let mut map = HashMap::new();
-    map.insert(
-        String::from("ENDLESS_SCROLL"),
-        String::from("endless_scroll"),
-    );
-    map.insert(
-        String::from("BOOK_LOCATION"),
-        String::from("book_folder_location"),
-    );
-    map
-    // loop through list of settings and itialize default key and vals
+
+    let mut settings_map = HashMap::new();
+
+    for (key, name) in expected_keys {
+        settings_map.insert(key, name);
+    }
+
+    settings_map
 }
 #[tauri::command]
 fn shelf_setup() {
@@ -81,11 +64,8 @@ fn load_settings_into_memory() {
             let home_dir = get_home_dir();
             let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
             // Check if the file already exists
-            let file = match OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .open(&settings_path)
+            let file = match
+                OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
             {
                 Ok(file) => file,
                 Err(e) => {
@@ -117,11 +97,7 @@ fn load_settings_into_memory() {
 #[tauri::command(rename_all = "snake_case")]
 pub fn get_configuration_option(option_name: String) -> Option<String> {
     load_settings_into_memory();
-    unsafe {
-        SETTINGS_MAP
-            .as_ref()
-            .and_then(|map| map.get(&option_name).cloned())
-    }
+    unsafe { SETTINGS_MAP.as_ref().and_then(|map| map.get(&option_name).cloned()) }
 }
 #[tauri::command(rename_all = "snake_case")]
 pub fn change_configuration_option(option_name: String, value: String) {
