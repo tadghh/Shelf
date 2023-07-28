@@ -11,9 +11,8 @@ export default function SettingsItem({
   settingsDescription = "",
 }) {
   const [settingsItemStatus, setSettingsItemStatus] = useState("");
-  const [settingsItemLoaded, setSettingsItemLoaded] = useState(false);
   const Component = getComponentForEnum(settingsType);
-  console.log(settingsConfigString);
+
   const updateOption = ({ value }) => {
     invoke("change_configuration_option", {
       option_name: settingsConfigString,
@@ -26,19 +25,11 @@ export default function SettingsItem({
       option_name: settingsConfigString,
     }).then((data) => {
       if (data) {
-        console.log("loaded" + settingsConfigString);
-        console.log("loaded" + data);
-        console.log(typeof data);
         setSettingsItemStatus(data);
-        setSettingsItemLoaded(true);
       }
     });
   }, []);
-  useEffect(() => {
-    console.log(typeof settingsItemStatus);
-    console.log( settingsItemStatus);
-    console.log( settingsItemStatus != "");
-  }, [settingsItemStatus]);
+
   return settingsItemStatus != ""? (
     <div className="flex items-center justify-between w-full p-4 mt-2 bg-white border h-28 rounded-xl">
       <div className="flex text-gray-900 ">
