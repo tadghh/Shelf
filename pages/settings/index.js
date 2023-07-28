@@ -12,7 +12,6 @@ export default function Settings() {
     }
     loadEnum();
   }, []);
-console.log(settingsItemsEnum)
   return (
     <div
       className={`flex-col min-h-screen px-5 py-2 ml-20 transition-opacity duration-550 ease-in-out ${
