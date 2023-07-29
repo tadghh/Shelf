@@ -15,7 +15,6 @@ export default function BookDashboard() {
       const start = performance.now();
 
       const bookCovers = await invoke("create_covers");
-      console.log("fff");
       setTitleData(bookCovers);
 
       const base64ImageAddresses = await Promise.all(
@@ -48,7 +47,7 @@ export default function BookDashboard() {
     return (
       <>
         {directoryStatus ? (
-          <div className="ml-20 flex min-h-screen  flex-wrap items-center   justify-between gap-y-2.5  py-2">
+          <div className="ml-20 flex min-h-screen mr-4 flex-wrap items-center justify-between gap-y-2.5  py-2">
             {imageData.map((data, index) => (
               <BookCover
                 className="py-4"

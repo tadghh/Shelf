@@ -25,6 +25,18 @@ body {
 		)
 		rgb(var(--background-start-rgb));
 }
+
+
+body::-webkit-scrollbar {
+    width: .5em;
+}
+
+
+body::-webkit-scrollbar-thumb {
+  border-radius: 25px;
+  background-color: white;
+
+}
 @layer components {
 	/* .navbar-icon > ul > li > a {
   margin-left: 0px;
