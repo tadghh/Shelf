@@ -3,7 +3,12 @@ mod book;
 mod shelf;
 
 use crate::{
-    book::{ load_book, get_cover, util::base64_encode_file, bookio::create_covers },
+    book::{
+        load_book,
+        get_cover,
+        util::{ base64_encode_file, base64_encode_covers },
+        bookio::create_covers,
+    },
     shelf::{ change_configuration_option, get_configuration_option, shelf_settings_values },
 };
 
@@ -18,7 +23,8 @@ fn main() {
                 change_configuration_option,
                 get_configuration_option,
                 get_cover,
-                shelf_settings_values
+                shelf_settings_values,
+                base64_encode_covers
             ]
         )
         .run(tauri::generate_context!())

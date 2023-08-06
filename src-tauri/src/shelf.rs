@@ -3,6 +3,7 @@ use std::{
     collections::HashMap,
     fs::{ OpenOptions },
     io::{ BufRead, BufReader, Seek, SeekFrom, Write, Read },
+    fmt::format,
 };
 
 use crate::book::bookio::{ get_home_dir, create_default_settings_file };
@@ -14,6 +15,9 @@ static mut SETTINGS_MAP: Option<HashMap<String, String>> = None;
 
 pub fn get_cover_image_folder_name() -> &'static str {
     COVER_IMAGE_FOLDER_NAME
+}
+pub fn get_covers_directory() -> String {
+    format!("{}/{}/{}", get_home_dir(), "cache", get_cover_image_folder_name())
 }
 pub fn get_cache_file_name() -> &'static str {
     CACHE_FILE_NAME

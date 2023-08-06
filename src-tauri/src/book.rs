@@ -1,11 +1,10 @@
-
 use std::fs;
-use std::{fs::OpenOptions, path::Path};
-use std::io::{BufReader, Write};
-use serde::{Deserialize, Serialize};
+use std::{ fs::OpenOptions, path::Path };
+use std::io::{ BufReader, Write };
+use serde::{ Deserialize, Serialize };
 use epub::doc::EpubDoc;
 
-use crate::book::util::{chunk_binary_search_index_load, base64_encode_book, base64_encode_file};
+use crate::book::util::{ chunk_binary_search_index_load, base64_encode_book, base64_encode_file };
 //use crate::shelf::get_configuration_option;
 pub mod bookio;
 pub mod util;
@@ -40,18 +39,12 @@ pub fn load_book(title: String) -> Result<String, String> {
         println!("{:?}", Path::new(&open_file).exists());
         println!("{:?}", &BOOK_JSON.json_path);
         if Path::new(&open_file).exists() {
-            let file = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .open(open_file);
+            let file = OpenOptions::new().read(true).write(true).create(true).open(open_file);
 
-            BOOK_JSON.update_books(
-                match serde_json::from_reader(BufReader::new(file.unwrap())) {
-                    Ok(data) => data,
-                    Err(_) => Vec::new(),
-                },
-            );
+            BOOK_JSON.update_books(match serde_json::from_reader(BufReader::new(file.unwrap())) {
+                Ok(data) => data,
+                Err(_) => Vec::new(),
+            });
             //  println!("Yo Index {:?}", &BOOK_JSON.books.take());
             //Okay we have it but like dont steal the data perhaps?
             let temp = &BOOK_JSON.books;
@@ -69,48 +62,64 @@ pub fn load_book(title: String) -> Result<String, String> {
         }
     }
 
-     Err("Error occured".to_string())
+    Err("Error occured".to_string())
 }
 
-fn create_cover(book_directory: String, write_directory: &String) -> String {
+// fn create_cover(book_directory: String, write_directory: &String) -> String {
+//     use rand::Rng;
+
+//     let mut rng = rand::thread_rng();
+
+//     let random_num = rng.gen_range(0..=10000).to_string();
+//     let cover_path = format!("{}/{}.jpg", &write_directory, random_num);
+//     let doc = EpubDoc::new(book_directory);
+//     let mut doc = doc.unwrap();
+//     if let Some(cover) = doc.get_cover() {
+//         let cover_data = cover.0;
+//         let f = fs::File::create(&cover_path);
+//         let mut f = f.unwrap();
+//         if let Err(err) = f.write_all(&cover_data) {
+//             eprintln!("Failed to write cover data: {:?}", err);
+//         }
+//     }
+
+//      cover_path
+// }
+fn create_cover(book_directory: String, write_directory: &String) -> Result<String, String> {
     use rand::Rng;
 
     let mut rng = rand::thread_rng();
 
     let random_num = rng.gen_range(0..=10000).to_string();
     let cover_path = format!("{}/{}.jpg", &write_directory, random_num);
-    let doc = EpubDoc::new(book_directory);
-    let mut doc = doc.unwrap();
+
+    let mut doc = EpubDoc::new(book_directory).map_err(|err|
+        format!("Error opening EpubDoc: {}", err)
+    )?;
     if let Some(cover) = doc.get_cover() {
         let cover_data = cover.0;
-        let f = fs::File::create(&cover_path);
-        let mut f = f.unwrap();
-        if let Err(err) = f.write_all(&cover_data) {
-            eprintln!("Failed to write cover data: {:?}", err);
-        }
+        let mut f = fs::File
+            ::create(&cover_path)
+            .map_err(|err| format!("Error creating cover file: {}", err))?;
+        f.write_all(&cover_data).map_err(|err| format!("Error writing cover data: {}", err))?;
+    } else {
+        return Err("No cover image found in the EpubDoc".to_string());
     }
 
-     cover_path
+    Ok(cover_path)
 }
-
 #[tauri::command(rename_all = "snake_case")]
 pub fn get_cover(book_title: String) -> Result<String, String> {
     unsafe {
         let open_file: &String = &BOOK_JSON.json_path.to_owned();
 
         if Path::new(&open_file).exists() {
-            let file = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .open(open_file);
+            let file = OpenOptions::new().read(true).write(true).create(true).open(open_file);
 
-            BOOK_JSON.update_books(
-                match serde_json::from_reader(BufReader::new(file.unwrap())) {
-                    Ok(data) => data,
-                    Err(_) => Vec::new(),
-                },
-            );
+            BOOK_JSON.update_books(match serde_json::from_reader(BufReader::new(file.unwrap())) {
+                Ok(data) => data,
+                Err(_) => Vec::new(),
+            });
 
             let temp = &BOOK_JSON.books;
             let book_index = chunk_binary_search_index_load(temp, &book_title);

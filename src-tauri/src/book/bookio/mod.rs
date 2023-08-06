@@ -66,18 +66,29 @@ pub fn create_default_settings_file() {
 }
 //This creates the vector to be written to the json file
 pub fn create_book_vec(items: &Vec<String>, write_directory: &String) -> Vec<Book> {
+    println!("Items {:?}", items);
+    println!("length of items {:?}", items.len());
     let books: Vec<Book> = items
         .par_iter()
         .filter_map(|item| {
             let title = EpubDoc::new(item).unwrap().mdata("title").unwrap();
 
-            let new_book = Book {
-                cover_location: create_cover(item.to_string(), write_directory),
-                book_location: item.replace('\\', "/"),
-                title,
-            };
-
-            Some(new_book)
+            let cover_location_result = create_cover(item.to_string(), write_directory);
+            if let Ok(cover_location) = cover_location_result {
+                let new_book = Book {
+                    cover_location,
+                    book_location: item.replace('\\', "/"),
+                    title,
+                };
+                Some(new_book)
+            } else {
+                eprintln!(
+                    "Error creating cover for item {}: {}",
+                    item,
+                    cover_location_result.err().unwrap_or("Unknown Error".to_string())
+                );
+                None // Skip this book and continue with the next one
+            }
         })
         .collect();
 
@@ -95,9 +106,8 @@ pub fn create_covers() -> Option<Vec<Book>> {
 
     let mut book_json: Vec<Book>;
     //Get working  directory
-    let home_dir = &env::current_dir().unwrap().to_string_lossy().replace('\\', "/");
 
-    let json_path = format!("{}/{}", &home_dir, get_cache_file_name());
+    let json_path = format!("{}/{}", get_home_dir(), get_cache_file_name());
     let dir = match get_configuration_option("book_folder_location".to_string()) {
         Some(val) => val,
         None => {
@@ -119,7 +129,7 @@ pub fn create_covers() -> Option<Vec<Book>> {
         })
         .collect();
 
-    let cache_directory = create_directory(home_dir, "cache");
+    let cache_directory = create_directory(&get_home_dir(), "cache");
     let covers_directory = create_directory(&cache_directory, get_cover_image_folder_name());
 
     unsafe {
@@ -128,7 +138,7 @@ pub fn create_covers() -> Option<Vec<Book>> {
         }
     }
 
-    if Path::new(&json_path).exists() {
+    if false {
         let file = OpenOptions::new().read(true).write(true).create(true).open(&json_path);
 
         book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
@@ -155,7 +165,7 @@ pub fn create_covers() -> Option<Vec<Book>> {
                             cover_location: create_cover(
                                 item_normalized.to_string(),
                                 &covers_directory
-                            ),
+                            ).unwrap(),
                             book_location: item_normalized,
                             title,
                         };
@@ -174,6 +184,7 @@ pub fn create_covers() -> Option<Vec<Book>> {
         }
     } else {
         book_json = create_book_vec(&epubs, &covers_directory);
+        println!("{} length", book_json.len());
         file_changes = true;
     }
     if file_changes {

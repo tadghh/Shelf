@@ -16,7 +16,7 @@ export default function BookDashboard() {
 
       const bookCovers = await invoke("create_covers");
       setTitleData(bookCovers);
-
+     // const base64ImageAddresses =await invoke("base64_encode_covers");
       const base64ImageAddresses = await Promise.all(
         bookCovers.map(async (book) => {
           return await invoke("base64_encode_file", {
