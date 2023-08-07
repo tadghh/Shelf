@@ -138,7 +138,7 @@ pub fn create_covers() -> Option<Vec<Book>> {
         }
     }
 
-    if false {
+    if Path::new(&json_path).exists() {
         let file = OpenOptions::new().read(true).write(true).create(true).open(&json_path);
 
         book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
@@ -147,7 +147,7 @@ pub fn create_covers() -> Option<Vec<Book>> {
         };
 
         let current_length = &book_json.len();
-
+        println!("current {} epubs {}", current_length, &epubs.len());
         if current_length != &epubs.len() {
             let book_json_len = Arc::new(AtomicUsize::new(book_json.len()));
             let book_json_test = Arc::new(Mutex::new(book_json));

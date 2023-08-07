@@ -3,7 +3,9 @@ use std::{ fs::OpenOptions, path::Path };
 use std::io::{ BufReader, Write };
 use serde::{ Deserialize, Serialize };
 use epub::doc::EpubDoc;
+use regex::Regex;
 
+use crate::book::bookio::get_home_dir;
 use crate::book::util::{ chunk_binary_search_index_load, base64_encode_book, base64_encode_file };
 //use crate::shelf::get_configuration_option;
 pub mod bookio;
@@ -93,17 +95,42 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
     let random_num = rng.gen_range(0..=10000).to_string();
     let cover_path = format!("{}/{}.jpg", &write_directory, random_num);
 
-    let mut doc = EpubDoc::new(book_directory).map_err(|err|
+    let mut doc = EpubDoc::new(&book_directory).map_err(|err|
         format!("Error opening EpubDoc: {}", err)
     )?;
+    println!("{:?}", doc.resources);
+
     if let Some(cover) = doc.get_cover() {
+        // println!("COver info {:?} Title: \n", doc);
         let cover_data = cover.0;
         let mut f = fs::File
             ::create(&cover_path)
             .map_err(|err| format!("Error creating cover file: {}", err))?;
         f.write_all(&cover_data).map_err(|err| format!("Error writing cover data: {}", err))?;
     } else {
-        return Err("No cover image found in the EpubDoc".to_string());
+        //Sometimes the cover isnt setup correctly lets manually look for it
+        let mut doc2 = EpubDoc::new(&book_directory).map_err(|err|
+            format!("Error opening EpubDoc: {}", err)
+        )?;
+        let test2 = &mut doc.resources;
+        let pattern = r"cover";
+        let regex = Regex::new(pattern).unwrap();
+        // let test = test2.resources;
+        let cover_id = test2.keys().find(|key| regex.is_match(key));
+
+        //regex map resources for the path
+        let cover = doc2.get_resource(cover_id.unwrap());
+        let cover_data = cover.unwrap().0;
+        let mut f = fs::File
+            ::create(&cover_path)
+            .map_err(|err| format!("Error creating cover file: {}", err))?;
+        f.write_all(&cover_data).map_err(|err| format!("Error writing cover data: {}", err))?;
+        println!("{:?}", doc.resources);
+        // println!("{:?}", doc.get_resource("id_cover_jpg"));
+
+        //cover_path = format!("{}/{}", get_home_dir(), "error.jpg");
+
+        //return Err("No cover image found in the EpubDoc".to_string());
     }
 
     Ok(cover_path)
