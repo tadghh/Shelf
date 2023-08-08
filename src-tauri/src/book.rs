@@ -87,50 +87,56 @@ pub fn load_book(title: String) -> Result<String, String> {
 
 //      cover_path
 // }
+fn sanitize_windows_filename(filename: String) -> String {
+    let disallowed_chars: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+
+    let sanitized: String = filename
+        .chars()
+        .map(|c| if disallowed_chars.contains(&c) { '_' } else { c })
+        .collect();
+
+    sanitized
+}
+
 fn create_cover(book_directory: String, write_directory: &String) -> Result<String, String> {
-    use rand::Rng;
-
-    let mut rng = rand::thread_rng();
-
-    let random_num = rng.gen_range(0..=10000).to_string();
-    let cover_path = format!("{}/{}.jpg", &write_directory, random_num);
-
     let mut doc = EpubDoc::new(&book_directory).map_err(|err|
         format!("Error opening EpubDoc: {}", err)
     )?;
-    println!("{:?}", doc.resources);
 
-    if let Some(cover) = doc.get_cover() {
-        // println!("COver info {:?} Title: \n", doc);
-        let cover_data = cover.0;
+    let cover_path = format!(
+        "{}/{}.jpg",
+        &write_directory,
+        sanitize_windows_filename(doc.mdata("title").unwrap())
+    );
+
+    if doc.get_cover().is_some() {
+        let cover_data = doc.get_cover().unwrap();
         let mut f = fs::File
             ::create(&cover_path)
             .map_err(|err| format!("Error creating cover file: {}", err))?;
-        f.write_all(&cover_data).map_err(|err| format!("Error writing cover data: {}", err))?;
+
+        f.write_all(&cover_data.0).map_err(|err| format!("Error writing cover data: {}", err))?;
     } else {
-        //Sometimes the cover isnt setup correctly lets manually look for it
-        let mut doc2 = EpubDoc::new(&book_directory).map_err(|err|
-            format!("Error opening EpubDoc: {}", err)
-        )?;
-        let test2 = &mut doc.resources;
+        //Look for the cover_id in the epub, we are just looking for any property containing the word cover
+        //This is because EpubDoc looks for an exact string, and some epubs dont contain it
         let pattern = r"cover";
         let regex = Regex::new(pattern).unwrap();
-        // let test = test2.resources;
-        let cover_id = test2.keys().find(|key| regex.is_match(key));
 
-        //regex map resources for the path
-        let cover = doc2.get_resource(cover_id.unwrap());
-        let cover_data = cover.unwrap().0;
-        let mut f = fs::File
-            ::create(&cover_path)
-            .map_err(|err| format!("Error creating cover file: {}", err))?;
-        f.write_all(&cover_data).map_err(|err| format!("Error writing cover data: {}", err))?;
-        println!("{:?}", doc.resources);
-        // println!("{:?}", doc.get_resource("id_cover_jpg"));
+        let epub_resources = doc.resources.clone();
 
-        //cover_path = format!("{}/{}", get_home_dir(), "error.jpg");
+        let cover_id = epub_resources.keys().find(|key| regex.is_match(key));
 
-        //return Err("No cover image found in the EpubDoc".to_string());
+        if cover_id.is_some() {
+            let cover = doc.get_resource(cover_id.unwrap());
+            let cover_data = cover.unwrap().0;
+            let mut f = fs::File
+                ::create(&cover_path)
+                .map_err(|err| format!("Error creating cover file: {}", err))?;
+            f.write_all(&cover_data).map_err(|err| format!("Error writing cover data: {}", err))?;
+        } else {
+            //Return our error thumbnail placeholder
+            return Ok(format!("{}/{}", get_home_dir(), "error.jpg"));
+        }
     }
 
     Ok(cover_path)
