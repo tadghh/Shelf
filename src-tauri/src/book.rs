@@ -103,6 +103,7 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
         format!("Error opening EpubDoc: {}", err)
     )?;
 
+    //Base filename off the books title
     let cover_path = format!(
         "{}/{}.jpg",
         &write_directory,
