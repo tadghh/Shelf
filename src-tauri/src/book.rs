@@ -120,12 +120,19 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
     } else {
         //Look for the cover_id in the epub, we are just looking for any property containing the word cover
         //This is because EpubDoc looks for an exact string, and some epubs dont contain it
-        let pattern = r"cover";
-        let regex = Regex::new(pattern).unwrap();
+        // let mimetype = r"image/jpeg";
+        let cover_key_regex = Regex::new(r"(?i)cover").unwrap();
+        let mime_type_regex = Regex::new(r"image/jpeg").unwrap();
 
         let epub_resources = doc.resources.clone();
-
-        let cover_id = epub_resources.keys().find(|key| regex.is_match(key));
+        println!("Resources {:?}", epub_resources);
+        let cover_id = epub_resources
+            .keys()
+            .find(
+                |key|
+                    cover_key_regex.is_match(key) &&
+                    mime_type_regex.is_match(&doc.get_resource(key).unwrap().1)
+            );
 
         if cover_id.is_some() {
             let cover = doc.get_resource(cover_id.unwrap());
