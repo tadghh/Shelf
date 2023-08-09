@@ -4,7 +4,8 @@ use std::io::{ BufReader, Write };
 use serde::{ Deserialize, Serialize };
 use epub::doc::EpubDoc;
 use regex::Regex;
-
+use xmltree::Element;
+use xmltree::XMLNode;
 use crate::book::bookio::get_home_dir;
 use crate::book::util::{ chunk_binary_search_index_load, base64_encode_book, base64_encode_file };
 //use crate::shelf::get_configuration_option;
@@ -142,12 +143,77 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
                 .map_err(|err| format!("Error creating cover file: {}", err))?;
             f.write_all(&cover_data).map_err(|err| format!("Error writing cover data: {}", err))?;
         } else {
-            //Return our error thumbnail placeholder
-            return Ok(format!("{}/{}", get_home_dir(), "error.jpg"));
+            let xhtml_mime_regex = Regex::new(r"application/xhtml+xml").unwrap();
+
+            //We should make sure its xhtml
+            let cover_id = epub_resources.keys().find(|key| cover_key_regex.is_match(key));
+            let resource = doc.get_resource(cover_id.unwrap());
+            let file_content = &resource.unwrap().0;
+            let buffer_str = String::from_utf8_lossy(file_content);
+            // Parse the XML content
+            let root = Element::parse(buffer_str.as_bytes()).expect("Failed to parse XML");
+
+            // Search for the first <img> tag
+            if let Some(img_element) = find_img_element(&root) {
+                // Get the "src" attribute value of the <img> tag
+                if let Some(image_src) = img_element.attributes.get("src") {
+                    println!("Cover image filename: {}", image_src);
+                    if
+                        let (Some(last_slash), Some(last_dot)) = (
+                            image_src.rfind('/'),
+                            image_src.rfind('.'),
+                        )
+                    {
+                        // Extract the substring between the last slash and last dot
+                        let filename = &image_src[last_slash + 1..last_dot];
+                        let cover_key_regex = Regex::new(&format!(r"{}", filename)).unwrap();
+
+                        let cover_id = epub_resources
+                            .keys()
+                            .find(
+                                |key|
+                                    cover_key_regex.is_match(key) &&
+                                    mime_type_regex.is_match(&doc.get_resource(key).unwrap().1)
+                            );
+                        if cover_id.is_some() {
+                            let cover = doc.get_resource(cover_id.unwrap());
+                            let cover_data = cover.unwrap().0;
+                            let mut f = fs::File
+                                ::create(&cover_path)
+                                .map_err(|err| format!("Error creating cover file: {}", err))?;
+                            f
+                                .write_all(&cover_data)
+                                .map_err(|err| format!("Error writing cover data: {}", err))?;
+                        }
+                        println!("Extracted filename: {}", filename);
+                    } else {
+                        println!("Slash or dot not found in the string");
+                    }
+                } else {
+                    println!("No src attribute found in the img element");
+                }
+            } else {
+                println!("No img element found");
+                return Ok(format!("{}/{}", get_home_dir(), "error.jpg"));
+            }
         }
     }
 
     Ok(cover_path)
+}
+fn find_img_element(element: &Element) -> Option<&Element> {
+    if element.name == "img" {
+        Some(element)
+    } else {
+        for child in &element.children {
+            if let Some(child_element) = child.as_element() {
+                if let Some(img_element) = find_img_element(child_element) {
+                    return Some(img_element);
+                }
+            }
+        }
+        None
+    }
 }
 #[tauri::command(rename_all = "snake_case")]
 pub fn get_cover(book_title: String) -> Result<String, String> {
