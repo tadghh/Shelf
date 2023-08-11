@@ -1,6 +1,5 @@
 use epub::doc::EpubDoc;
 use std::{
-    env,
     fs::{ self, File, OpenOptions },
     io::{ BufReader, Write },
     path::Path,
@@ -20,7 +19,21 @@ use crate::{
     },
 };
 
-use super::{ create_cover, Book };
+use super::{ create_cover, Book, util::get_home_dir };
+
+pub fn write_cover_image(data: Vec<u8>, path: &String) -> Result<(), ()> {
+    let mut file = match File::create(path) {
+        Err(..) => {
+            return Err(());
+        }
+        Ok(file) => file,
+    };
+    if file.write_all(&data).is_err() {
+        return Err(());
+    }
+
+    return Ok(());
+}
 
 //Checks if a directory exists and if not its path is created
 fn create_directory(path: &String, new_folder_name: &str) -> String {
@@ -31,12 +44,6 @@ fn create_directory(path: &String, new_folder_name: &str) -> String {
         }
     }
     return created_dir.to_string_lossy().replace('\\', "/");
-}
-pub fn get_home_dir() -> String {
-    match env::current_dir() {
-        Ok(dir) => dir.to_string_lossy().replace('\\', "/"),
-        Err(_) => String::new(), // Return an empty string as a default value
-    }
 }
 
 pub fn create_default_settings_file() {

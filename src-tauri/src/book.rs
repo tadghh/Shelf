@@ -6,11 +6,19 @@ use epub::doc::EpubDoc;
 use regex::Regex;
 use xmltree::Element;
 
-use crate::book::bookio::get_home_dir;
-use crate::book::util::{ chunk_binary_search_index_load, base64_encode_book, base64_encode_file };
-//use crate::shelf::get_configuration_option;
+use crate::book::util::{
+    chunk_binary_search_index_load,
+    base64_encode_book,
+    base64_encode_file,
+    get_home_dir,
+};
+
+use self::bookio::write_cover_image;
+use self::util::sanitize_windows_filename;
+
 pub mod bookio;
 pub mod util;
+
 struct BookCache {
     books: Vec<Book>,
     json_path: String,
@@ -24,10 +32,12 @@ impl BookCache {
         self.books = new_books;
     }
 }
+
 static mut BOOK_JSON: BookCache = BookCache {
     books: Vec::new(),
     json_path: String::new(),
 };
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Book {
     cover_location: String,
@@ -39,8 +49,7 @@ pub struct Book {
 pub fn load_book(title: String) -> Result<String, String> {
     unsafe {
         let open_file: &String = &BOOK_JSON.json_path.to_owned();
-        println!("{:?}", Path::new(&open_file).exists());
-        println!("{:?}", &BOOK_JSON.json_path);
+
         if Path::new(&open_file).exists() {
             let file = OpenOptions::new().read(true).write(true).create(true).open(open_file);
 
@@ -48,13 +57,11 @@ pub fn load_book(title: String) -> Result<String, String> {
                 Ok(data) => data,
                 Err(_) => Vec::new(),
             });
-            //  println!("Yo Index {:?}", &BOOK_JSON.books.take());
             //Okay we have it but like dont steal the data perhaps?
             let temp = &BOOK_JSON.books;
             let book_index = chunk_binary_search_index_load(temp, &title);
             if let Some(book) = temp.get(book_index.unwrap()) {
                 // Accessing the book at the specified index
-                println!("{}", book.book_location);
                 return Ok(base64_encode_book(&book.book_location.to_string()).unwrap());
             } else {
                 println!("Invalid index");
@@ -67,16 +74,6 @@ pub fn load_book(title: String) -> Result<String, String> {
     Err("Error occured".to_string())
 }
 
-fn sanitize_windows_filename(filename: String) -> String {
-    let disallowed_chars: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
-
-    let sanitized: String = filename
-        .chars()
-        .map(|c| if disallowed_chars.contains(&c) { '_' } else { c })
-        .collect();
-
-    sanitized
-}
 fn find_cover(
     root: &Element,
     mut doc: EpubDoc<BufReader<File>>,
@@ -133,6 +130,7 @@ fn find_cover(
 
     Ok(())
 }
+
 fn create_cover(book_directory: String, write_directory: &String) -> Result<String, String> {
     let mut doc = EpubDoc::new(book_directory).map_err(|err|
         format!("Error opening EpubDoc: {}", err)
@@ -147,11 +145,9 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
 
     if doc.get_cover().is_some() {
         let cover_data = doc.get_cover().unwrap();
-        let mut f = fs::File
-            ::create(&cover_path)
-            .map_err(|err| format!("Error creating cover file: {}", err))?;
-
-        f.write_all(&cover_data.0).map_err(|err| format!("Error writing cover data: {}", err))?;
+        if write_cover_image(cover_data.0, &cover_path).is_err() {
+            return Ok(format!("{}/{}", get_home_dir(), "error.jpg"));
+        }
     } else {
         //Look for the cover_id in the epub, we are just looking for any property containing the word cover
         //This is because EpubDoc looks for an exact string, and some epubs dont contain it
@@ -173,10 +169,9 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
         if let Some(..) = cover_id {
             let cover = doc.get_resource(cover_id.unwrap());
             let cover_data = cover.unwrap().0;
-            let mut f = fs::File
-                ::create(&cover_path)
-                .map_err(|err| format!("Error creating cover file: {}", err))?;
-            f.write_all(&cover_data).map_err(|err| format!("Error writing cover data: {}", err))?;
+            if write_cover_image(cover_data, &cover_path).is_err() {
+                return Ok(format!("{}/{}", get_home_dir(), "error.jpg"));
+            }
         } else {
             //let xhtml_mime_regex = Regex::new(r"application/xhtml+xml").unwrap();
 
@@ -197,6 +192,7 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
 
     Ok(cover_path)
 }
+
 fn find_img_element(element: &Element) -> Option<&Element> {
     if element.name == "img" {
         Some(element)
@@ -211,6 +207,7 @@ fn find_img_element(element: &Element) -> Option<&Element> {
         None
     }
 }
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn get_cover(book_title: String) -> Result<String, String> {
     unsafe {
@@ -224,10 +221,9 @@ pub fn get_cover(book_title: String) -> Result<String, String> {
                 Err(_) => Vec::new(),
             });
 
-            let temp = &BOOK_JSON.books;
-            let book_index = chunk_binary_search_index_load(temp, &book_title);
-            println!("yo");
-            if let Some(book) = temp.get(book_index.unwrap()) {
+            let books = &BOOK_JSON.books;
+            let book_index = chunk_binary_search_index_load(books, &book_title);
+            if let Some(book) = books.get(book_index.unwrap()) {
                 return Ok(base64_encode_file(&book.cover_location.to_string()).unwrap());
             } else {
                 println!("Invalid index");

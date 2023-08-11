@@ -1,8 +1,31 @@
 use base64::{ engine::general_purpose, Engine as _ };
-use crate::shelf::get_covers_directory;
+
+use crate::shelf::get_cover_image_folder_name;
 
 use super::Book;
 use std::{ env, fs::{ File, self }, io::Read, cmp::Ordering };
+
+pub fn get_home_dir() -> String {
+    match env::current_dir() {
+        Ok(dir) => dir.to_string_lossy().replace('\\', "/"),
+        Err(_) => String::new(), // Return an empty string as a default value
+    }
+}
+
+pub fn sanitize_windows_filename(filename: String) -> String {
+    let disallowed_chars: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+
+    let sanitized: String = filename
+        .chars()
+        .map(|c| if disallowed_chars.contains(&c) { '_' } else { c })
+        .collect();
+
+    sanitized
+}
+
+pub fn get_covers_directory() -> String {
+    format!("{}/{}/{}", get_home_dir(), "cache", get_cover_image_folder_name())
+}
 
 pub fn base64_encode_book(file_path: &str) -> Result<String, String> {
     let mut buffer = Vec::new();
