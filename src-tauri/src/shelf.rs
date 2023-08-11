@@ -1,9 +1,7 @@
-use serde::{ Deserialize, Serialize };
 use std::{
     collections::HashMap,
-    fs::{ OpenOptions },
+    fs::OpenOptions,
     io::{ BufRead, BufReader, Seek, SeekFrom, Write, Read },
-    fmt::format,
 };
 
 use crate::book::bookio::{ get_home_dir, create_default_settings_file };
@@ -110,7 +108,7 @@ pub fn change_configuration_option(option_name: String, value: String) {
                 .create(true)
                 .read(true)
                 .write(true)
-                .open(&settings_path)
+                .open(settings_path)
                 .unwrap();
 
             let mut contents = String::new();
@@ -121,7 +119,7 @@ pub fn change_configuration_option(option_name: String, value: String) {
                 if let Some(end) = contents[start..].find('\n') {
                     // Option found with a newline character after
                     let mut new_contents = contents.clone();
-                    let new_value = format!("{}", value);
+                    let new_value = value;
                     new_contents.replace_range(start..start + end, &new_value);
 
                     // Overwrite the file with the updated contents

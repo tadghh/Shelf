@@ -34,7 +34,7 @@ fn create_directory(path: &String, new_folder_name: &str) -> String {
 }
 pub fn get_home_dir() -> String {
     match env::current_dir() {
-        Ok(dir) => dir.to_string_lossy().replace('\\', "/").to_string(),
+        Ok(dir) => dir.to_string_lossy().replace('\\', "/"),
         Err(_) => String::new(), // Return an empty string as a default value
     }
 }
@@ -115,7 +115,7 @@ pub fn create_covers() -> Option<Vec<Book>> {
 
     //Load epubs from the provided directory in the frontend, currently the dashboards component
     let epubs: Vec<String> = fs
-        ::read_dir(&dir)
+        ::read_dir(dir)
         .unwrap()
         .filter_map(|entry| {
             let path = entry.unwrap().path();

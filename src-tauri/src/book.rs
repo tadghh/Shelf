@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fs::{ self, File };
 use std::{ fs::OpenOptions, path::Path };
 use std::io::{ BufReader, Write };
@@ -6,7 +5,7 @@ use serde::{ Deserialize, Serialize };
 use epub::doc::EpubDoc;
 use regex::Regex;
 use xmltree::Element;
-use xmltree::XMLNode;
+
 use crate::book::bookio::get_home_dir;
 use crate::book::util::{ chunk_binary_search_index_load, base64_encode_book, base64_encode_file };
 //use crate::shelf::get_configuration_option;
@@ -85,7 +84,7 @@ fn find_cover(
     cover_path: &str
 ) -> Result<(), String> {
     let epub_resources = doc.resources.clone();
-    match find_img_element(&root) {
+    match find_img_element(root) {
         Some(img_element) => {
             if let Some(image_src) = img_element.attributes.get("src") {
                 if
@@ -95,7 +94,7 @@ fn find_cover(
                     )
                 {
                     let filename = &image_src[last_slash + 1..last_dot];
-                    let cover_key_regex = Regex::new(&format!(r"{}", filename)).unwrap();
+                    let cover_key_regex = Regex::new(filename).unwrap();
 
                     if
                         let Some(cover_id) = epub_resources
@@ -109,33 +108,33 @@ fn find_cover(
                         if let Some(cover) = doc.get_resource(cover_id) {
                             let cover_data = cover.0;
                             let mut f = fs::File
-                                ::create(&cover_path)
+                                ::create(cover_path)
                                 .map_err(|err| format!("Error creating cover file: {}", err))?;
                             f
                                 .write_all(&cover_data)
                                 .map_err(|err| format!("Error writing cover data: {}", err))?;
                         } else {
-                            return Err(format!("Failed to get cover resource"));
+                            return Err("Failed to get cover resource".to_string());
                         }
                     } else {
-                        return Err(format!("No cover ID found"));
+                        return Err("No cover ID found".to_string());
                     }
                 } else {
-                    return Err(format!("Slash or dot not found in the string"));
+                    return Err("Slash or dot not found in the string".to_string());
                 }
             } else {
-                return Err(format!("Image element has no 'src' attribute"));
+                return Err("Image element has no 'src' attribute".to_string());
             }
         }
         None => {
-            return Err(format!("Image element not found"));
+            return Err("Image element not found".to_string());
         }
     }
 
     Ok(())
 }
 fn create_cover(book_directory: String, write_directory: &String) -> Result<String, String> {
-    let mut doc = EpubDoc::new(&book_directory).map_err(|err|
+    let mut doc = EpubDoc::new(book_directory).map_err(|err|
         format!("Error opening EpubDoc: {}", err)
     )?;
 
@@ -171,7 +170,7 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
                     mime_type_regex.is_match(&doc.get_resource(key).unwrap().1)
             );
 
-        if cover_id.is_some() {
+        if let Some(..) = cover_id {
             let cover = doc.get_resource(cover_id.unwrap());
             let cover_data = cover.unwrap().0;
             let mut f = fs::File
@@ -189,7 +188,7 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
 
             // Parse the XML content
             let root = Element::parse(buffer_str.as_bytes()).expect("Failed to parse XML");
-            if let Err(_) = find_cover(&root, doc, &mime_type_regex, &cover_path) {
+            if find_cover(&root, doc, &mime_type_regex, &cover_path).is_err() {
                 //No cover was found
                 return Ok(format!("{}/{}", get_home_dir(), "error.jpg"));
             }
