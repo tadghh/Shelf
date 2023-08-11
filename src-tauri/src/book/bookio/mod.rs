@@ -14,7 +14,7 @@ use std::{
 use rayon::prelude::{ IntoParallelRefIterator, ParallelIterator };
 
 use crate::{
-    book::{ util::chunk_binary_search_index, BOOK_JSON },
+    book::{ util::chunk_binary_search_index, BOOK_JSON, get_home_dir, Book, create_cover },
     shelf::{
         get_cache_file_name,
         get_configuration_option,
@@ -23,23 +23,36 @@ use crate::{
     },
 };
 
-use super::{ create_cover, Book, util::get_home_dir };
-
-pub fn write_cover_image(data: Vec<u8>, path: &String) -> Result<(), String> {
-    let mut file = match File::create(path) {
-        Err(..) => {
+/// Writes the cover image to the specified path
+///
+/// # Arguments
+///
+/// * `data` - A vector containing the image data
+/// * `path` - A string representing the path to write to
+///
+pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &String) -> Result<(), String> {
+    if let Some(data) = data {
+        let mut file = match File::create(path) {
+            Err(..) => {
+                return Err(format!("{}/{}", get_home_dir(), "error.jpg"));
+            }
+            Ok(file) => file,
+        };
+        if file.write_all(&data.0).is_err() {
             return Err(format!("{}/{}", get_home_dir(), "error.jpg"));
         }
-        Ok(file) => file,
-    };
-    if file.write_all(&data).is_err() {
-        return Err(format!("{}/{}", get_home_dir(), "error.jpg"));
     }
 
     Ok(())
 }
 
-//Checks if a directory exists and if not its path is created
+/// Creates a directory and returns its path
+///
+/// # Arguments
+///
+/// * `path` - A string representing the directory to be made
+/// * `new_folder_name` - A string, the new folders name
+///
 fn create_directory(path: &String, new_folder_name: &str) -> String {
     let created_dir = Path::new(&path).join(new_folder_name);
     if !Path::new(&created_dir).exists() {
@@ -50,6 +63,7 @@ fn create_directory(path: &String, new_folder_name: &str) -> String {
     return created_dir.to_string_lossy().replace('\\', "/");
 }
 
+/// Creates the default settings file if none exists
 pub fn create_default_settings_file() {
     let home_dir = get_home_dir();
     let settings_path = format!("{}/{}", home_dir, get_settings_name());
@@ -75,15 +89,22 @@ pub fn create_default_settings_file() {
         );
     }
 }
-//This creates the vector to be written to the json file
+
+/// Creates a vector containing all the books and returns a a vector of book objects, here we also create the covers
+/// The returned json is sorted alphabetically so we can use binary sort when there are a large number of books
+///
+/// # Arguments
+///
+/// * `items` - A vector containing the book directories
+/// * `write_directory` - A string representing the path to write to
+///
 pub fn create_book_vec(items: &Vec<String>, write_directory: &String) -> Vec<Book> {
     let books: Vec<Book> = items
         .par_iter()
         .filter_map(|item| {
             let title = EpubDoc::new(item).unwrap().mdata("title").unwrap();
 
-            let cover_location_result = create_cover(item.to_string(), write_directory);
-            if let Ok(cover_location) = cover_location_result {
+            if let Ok(cover_location) = create_cover(item.to_string(), write_directory) {
                 let new_book = Book {
                     cover_location,
                     book_location: item.replace('\\', "/"),
@@ -91,11 +112,6 @@ pub fn create_book_vec(items: &Vec<String>, write_directory: &String) -> Vec<Boo
                 };
                 Some(new_book)
             } else {
-                eprintln!(
-                    "Error creating cover for item {}: {}",
-                    item,
-                    cover_location_result.err().unwrap_or("Unknown Error".to_string())
-                );
                 None // Skip this book and continue with the next one
             }
         })
@@ -107,14 +123,15 @@ pub fn create_book_vec(items: &Vec<String>, write_directory: &String) -> Vec<Boo
     sorted_books
 }
 
+/// Initializes the books and loading them from the users provided directory, if the book_cache file is missing the all epubs will be read
+/// Otherwise only books missing from the Static vector will be initialized
 #[tauri::command]
-pub fn create_covers() -> Option<Vec<Book>> {
+pub fn initialize_books() -> Option<Vec<Book>> {
     let start_time = Instant::now();
 
     let mut file_changes = false;
 
     let mut book_json: Vec<Book>;
-    //Get working  directory
 
     let json_path = format!("{}/{}", get_home_dir(), get_cache_file_name());
     let dir = match get_configuration_option("book_folder_location".to_string()) {

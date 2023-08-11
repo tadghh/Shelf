@@ -14,7 +14,7 @@ export default function BookDashboard() {
     async function loadImages() {
       const start = performance.now();
 
-      const bookCovers = await invoke("create_covers");
+      const bookCovers = await invoke("initialize_books");
       setTitleData(bookCovers);
      // const base64ImageAddresses =await invoke("base64_encode_covers");
       const base64ImageAddresses = await Promise.all(

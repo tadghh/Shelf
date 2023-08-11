@@ -2,7 +2,7 @@
 
 use app::{
     book::{
-        bookio::{ __cmd__create_covers, create_covers },
+        bookio::{ __cmd__initialize_books, initialize_books },
         util::{
             __cmd__base64_encode_file,
             __cmd__base64_encode_covers,
@@ -10,9 +10,7 @@ use app::{
             base64_encode_covers,
         },
         __cmd__load_book,
-        __cmd__get_cover,
         load_book,
-        get_cover,
     },
     shelf::{
         __cmd__get_configuration_option,
@@ -29,12 +27,11 @@ fn main() {
         ::default()
         .invoke_handler(
             tauri::generate_handler![
-                create_covers,
+                initialize_books,
                 base64_encode_file,
                 load_book,
                 change_configuration_option,
                 get_configuration_option,
-                get_cover,
                 shelf_settings_values,
                 base64_encode_covers
             ]

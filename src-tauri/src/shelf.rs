@@ -11,19 +11,23 @@ static SETTINGS_FILE_NAME: &str = "shelf_settings.conf";
 static COVER_IMAGE_FOLDER_NAME: &str = "cover_cache";
 static mut SETTINGS_MAP: Option<HashMap<String, String>> = None;
 
+///Get the name of the cover image folder
 pub fn get_cover_image_folder_name() -> &'static str {
     COVER_IMAGE_FOLDER_NAME
 }
 
+///Get the book cache file name
 pub fn get_cache_file_name() -> &'static str {
     CACHE_FILE_NAME
 }
+
+///Get the name of the settings file
 pub fn get_settings_name() -> &'static str {
     SETTINGS_FILE_NAME
 }
 
-//I have enums I want to use in the front end so this is how we get the
-//Hardcoding bad ya ya ya...
+///I have enums I want to use in the front end so this is how we get the
+///Hardcoding bad ya ya ya...
 #[tauri::command]
 pub fn shelf_settings_values() -> HashMap<String, String> {
     let shelf_option_values: HashMap<String, String> = HashMap::from([
@@ -34,6 +38,7 @@ pub fn shelf_settings_values() -> HashMap<String, String> {
     shelf_option_values
 }
 
+///Just to messing around, looking for more performant solutions
 fn load_settings_into_memory() {
     unsafe {
         if SETTINGS_MAP.is_none() {
@@ -71,6 +76,12 @@ fn load_settings_into_memory() {
     }
 }
 
+/// Returns the setting for the provided value
+///
+/// # Arguments
+///
+/// * `option_name` - The setting to get the value of
+///
 #[tauri::command(rename_all = "snake_case")]
 pub fn get_configuration_option(option_name: String) -> Option<String> {
     load_settings_into_memory();
