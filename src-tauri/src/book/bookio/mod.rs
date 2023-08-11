@@ -32,7 +32,7 @@ pub fn write_cover_image(data: Vec<u8>, path: &String) -> Result<(), ()> {
         return Err(());
     }
 
-    return Ok(());
+    Ok(())
 }
 
 //Checks if a directory exists and if not its path is created
