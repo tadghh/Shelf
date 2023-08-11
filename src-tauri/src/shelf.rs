@@ -33,6 +33,7 @@ pub fn shelf_settings_values() -> HashMap<String, String> {
 
     shelf_option_values
 }
+
 fn load_settings_into_memory() {
     unsafe {
         if SETTINGS_MAP.is_none() {
@@ -69,6 +70,7 @@ fn load_settings_into_memory() {
         }
     }
 }
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn get_configuration_option(option_name: String) -> Option<String> {
     load_settings_into_memory();

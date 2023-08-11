@@ -1,9 +1,11 @@
 use base64::{ engine::general_purpose, Engine as _ };
+use epub::doc::EpubDoc;
+use regex::Regex;
 
 use crate::shelf::get_cover_image_folder_name;
 
 use super::Book;
-use std::{ env, fs::{ File, self }, io::Read, cmp::Ordering };
+use std::{ env, fs::{ File, self }, io::{ Read, BufReader }, cmp::Ordering, collections::HashMap };
 
 pub fn get_home_dir() -> String {
     match env::current_dir() {
@@ -11,7 +13,6 @@ pub fn get_home_dir() -> String {
         Err(_) => String::new(), // Return an empty string as a default value
     }
 }
-
 pub fn sanitize_windows_filename(filename: String) -> String {
     let disallowed_chars: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 
@@ -59,9 +60,9 @@ pub fn base64_encode_book(file_path: &str) -> Result<String, String> {
 
     // Encode the file data as base64
     let base64_data = general_purpose::STANDARD.encode(&buffer);
-    //println!("yo {:?}", base64_data);
     Ok(base64_data)
 }
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
     let mut buffer = Vec::new();
@@ -121,6 +122,7 @@ pub fn base64_encode_covers() -> Result<Vec<String>, String> {
 
     Ok(base64_image_addresses)
 }
+
 pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<usize> {
     let title = key.to_string();
     //handel lower case
@@ -151,6 +153,7 @@ pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<us
         Some(dataset.len())
     }
 }
+
 pub fn chunk_binary_search_index_load(dataset: &[Book], key: &String) -> Option<usize> {
     let title = key.to_string();
     //handel lower case
@@ -180,4 +183,18 @@ pub fn chunk_binary_search_index_load(dataset: &[Book], key: &String) -> Option<
     } else {
         None
     }
+}
+
+pub fn check_epub_resource(
+    key_regex: Regex,
+    mime_regex: Regex,
+    epub_resources: &HashMap<String, (std::path::PathBuf, String)>,
+    doc: &mut EpubDoc<BufReader<File>>
+) -> Option<String> {
+    epub_resources
+        .keys()
+        .find(
+            |key| key_regex.is_match(key) && mime_regex.is_match(&doc.get_resource(key).unwrap().1)
+        )
+        .map(|key| key.to_owned())
 }

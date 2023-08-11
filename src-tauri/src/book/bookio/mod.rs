@@ -21,15 +21,15 @@ use crate::{
 
 use super::{ create_cover, Book, util::get_home_dir };
 
-pub fn write_cover_image(data: Vec<u8>, path: &String) -> Result<(), ()> {
+pub fn write_cover_image(data: Vec<u8>, path: &String) -> Result<(), String> {
     let mut file = match File::create(path) {
         Err(..) => {
-            return Err(());
+            return Err(format!("{}/{}", get_home_dir(), "error.jpg"));
         }
         Ok(file) => file,
     };
     if file.write_all(&data).is_err() {
-        return Err(());
+        return Err(format!("{}/{}", get_home_dir(), "error.jpg"));
     }
 
     Ok(())
@@ -152,7 +152,6 @@ pub fn create_covers() -> Option<Vec<Book>> {
         };
 
         let current_length = &book_json.len();
-        println!("current {} epubs {}", current_length, &epubs.len());
         if current_length != &epubs.len() {
             let book_json_len = Arc::new(AtomicUsize::new(book_json.len()));
             let book_json_test = Arc::new(Mutex::new(book_json));
@@ -160,12 +159,10 @@ pub fn create_covers() -> Option<Vec<Book>> {
             epubs.par_iter().for_each(|item| {
                 let item_normalized = item.replace('\\', "/");
                 let title = EpubDoc::new(&item_normalized).unwrap().mdata("title").unwrap();
-                println!("{}", title);
                 let mut book_json_guard = book_json_test.lock().unwrap();
                 let index = chunk_binary_search_index(&book_json_guard, &title);
                 match index {
                     Some(index) => {
-                        println!("cover");
                         let new_book = Book {
                             cover_location: create_cover(
                                 item_normalized.to_string(),
@@ -199,7 +196,7 @@ pub fn create_covers() -> Option<Vec<Book>> {
     }
 
     let elapsed_time = start_time.elapsed();
-    println!("Execution tiime: {} ms", elapsed_time.as_millis());
+    println!("Execution time: {} ms", elapsed_time.as_millis());
 
     Some(book_json)
 }
