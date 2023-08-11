@@ -53,7 +53,6 @@ pub fn load_book(title: String) -> Result<String, String> {
             //Okay we have it but like dont steal the data perhaps?
             let temp = &BOOK_JSON.books;
             let book_index = chunk_binary_search_index_load(temp, &title);
-            println!("yo");
             if let Some(book) = temp.get(book_index.unwrap()) {
                 // Accessing the book at the specified index
                 println!("{}", book.book_location);
@@ -69,26 +68,6 @@ pub fn load_book(title: String) -> Result<String, String> {
     Err("Error occured".to_string())
 }
 
-// fn create_cover(book_directory: String, write_directory: &String) -> String {
-//     use rand::Rng;
-
-//     let mut rng = rand::thread_rng();
-
-//     let random_num = rng.gen_range(0..=10000).to_string();
-//     let cover_path = format!("{}/{}.jpg", &write_directory, random_num);
-//     let doc = EpubDoc::new(book_directory);
-//     let mut doc = doc.unwrap();
-//     if let Some(cover) = doc.get_cover() {
-//         let cover_data = cover.0;
-//         let f = fs::File::create(&cover_path);
-//         let mut f = f.unwrap();
-//         if let Err(err) = f.write_all(&cover_data) {
-//             eprintln!("Failed to write cover data: {:?}", err);
-//         }
-//     }
-
-//      cover_path
-// }
 fn sanitize_windows_filename(filename: String) -> String {
     let disallowed_chars: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 
@@ -99,7 +78,7 @@ fn sanitize_windows_filename(filename: String) -> String {
 
     sanitized
 }
-fn process_image(
+fn find_cover(
     root: &Element,
     mut doc: EpubDoc<BufReader<File>>,
     mime_type_regex: &Regex,
@@ -178,11 +157,12 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
         //Look for the cover_id in the epub, we are just looking for any property containing the word cover
         //This is because EpubDoc looks for an exact string, and some epubs dont contain it
         // let mimetype = r"image/jpeg";
+        println!("We processing fr {}", cover_path);
+
         let cover_key_regex = Regex::new(r"(?i)cover").unwrap();
         let mime_type_regex = Regex::new(r"image/jpeg").unwrap();
 
         let epub_resources = doc.resources.clone();
-        println!("Resources {:?}", epub_resources);
         let cover_id = epub_resources
             .keys()
             .find(
@@ -209,7 +189,7 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
 
             // Parse the XML content
             let root = Element::parse(buffer_str.as_bytes()).expect("Failed to parse XML");
-            if let Err(_) = process_image(&root, doc, &mime_type_regex, &cover_path) {
+            if let Err(_) = find_cover(&root, doc, &mime_type_regex, &cover_path) {
                 //No cover was found
                 return Ok(format!("{}/{}", get_home_dir(), "error.jpg"));
             }

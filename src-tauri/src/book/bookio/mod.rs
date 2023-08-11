@@ -66,8 +66,6 @@ pub fn create_default_settings_file() {
 }
 //This creates the vector to be written to the json file
 pub fn create_book_vec(items: &Vec<String>, write_directory: &String) -> Vec<Book> {
-    println!("Items {:?}", items);
-    println!("length of items {:?}", items.len());
     let books: Vec<Book> = items
         .par_iter()
         .filter_map(|item| {
