@@ -1,3 +1,7 @@
+/*
+    In this crate you will find functions related to IO for handling books
+*/
+
 use epub::doc::EpubDoc;
 use std::{
     fs::{ self, File, OpenOptions },
