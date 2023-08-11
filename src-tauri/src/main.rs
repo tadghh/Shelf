@@ -1,16 +1,6 @@
 #![cfg_attr(all(not(debug_assertions), target_os = "windows"), windows_subsystem = "windows")]
-mod book;
-mod shelf;
-mod xml;
-use crate::{
-    book::{
-        load_book,
-        get_cover,
-        util::{ base64_encode_file, base64_encode_covers },
-        bookio::create_covers,
-    },
-    shelf::{ change_configuration_option, get_configuration_option, shelf_settings_values },
-};
+
+use app::{ book::{ bookio::*, util::*, * }, shelf::* };
 
 fn main() {
     tauri::Builder
