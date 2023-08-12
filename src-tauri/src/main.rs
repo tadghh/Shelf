@@ -3,12 +3,7 @@
 use app::{
     book::{
         bookio::{ __cmd__initialize_books, initialize_books },
-        util::{
-            __cmd__base64_encode_file,
-            __cmd__base64_encode_covers,
-            base64_encode_file,
-            base64_encode_covers,
-        },
+        util::{ __cmd__base64_encode_file, base64_encode_file },
         __cmd__load_book,
         load_book,
     },

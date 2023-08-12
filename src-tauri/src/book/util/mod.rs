@@ -5,14 +5,23 @@ use regex::Regex;
 use crate::shelf::get_cover_image_folder_name;
 
 use super::Book;
-use std::{ env, fs::{ File, self }, io::{ Read, BufReader }, cmp::Ordering, collections::HashMap };
+use std::{ env, fs::File, io::{ Read, BufReader }, cmp::Ordering, collections::HashMap };
 
+/// Returns Shelfs current working directory
 pub fn get_home_dir() -> String {
     match env::current_dir() {
         Ok(dir) => dir.to_string_lossy().replace('\\', "/"),
         Err(_) => String::new(), // Return an empty string as a default value
     }
 }
+
+/// Removes special charectars from a given string and returns it
+/// Some book titles contain charectars that arent compatible when used as filenames
+///
+/// # Arguments
+///
+/// * `filename` - The filename to sanitize
+///
 pub fn sanitize_windows_filename(filename: String) -> String {
     let disallowed_chars: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 
@@ -24,10 +33,12 @@ pub fn sanitize_windows_filename(filename: String) -> String {
     sanitized
 }
 
+/// Returns the configured cover directory
 pub fn get_covers_directory() -> String {
     format!("{}/{}/{}", get_home_dir(), "cache", get_cover_image_folder_name())
 }
 
+//This isnt needed
 pub fn base64_encode_book(file_path: &str) -> Result<String, String> {
     let mut buffer = Vec::new();
 
@@ -63,10 +74,18 @@ pub fn base64_encode_book(file_path: &str) -> Result<String, String> {
     Ok(base64_data)
 }
 
+/// Encodes the data of a give file, returning the encoded data
+/// This is to get around CORS issues
+///
+/// # Arguments
+///
+/// * `filepath` - The file to encode
+///
 #[tauri::command(rename_all = "snake_case")]
 pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
     let mut buffer = Vec::new();
 
+    //Refactor this
     let mut file = match File::open(file_path) {
         Ok(file) => file,
         Err(_) => {
@@ -95,34 +114,60 @@ pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
     Ok(base64_data)
 }
 
-#[tauri::command(rename_all = "snake_case")]
-pub fn base64_encode_covers() -> Result<Vec<String>, String> {
-    let mut base64_image_addresses = Vec::new();
+// #[tauri::command(rename_all = "snake_case")]
+// pub fn base64_encode_covers() -> Result<Vec<String>, String> {
+//     let base64_image_addresses: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+//     let handles: Vec<_> = fs
+//         ::read_dir(get_covers_directory())
+//         .map_err(|err| format!("Failed to read directory: {}", err))?
+//         .map(|entry| {
+//             let base64_image_addresses = Arc::clone(&base64_image_addresses);
+//             thread::spawn(move || {
+//                 let entry = entry.map_err(|err| format!("Error reading directory entry: {}", err))?;
+//                 if let Some(file_name) = entry.file_name().to_str() {
+//                     if file_name.ends_with(".jpg") || file_name.ends_with(".png") {
+//                         let mut buffer = Vec::new();
+//                         let file_path = entry.path();
+//                         let mut file = std::fs::File
+//                             ::open(&file_path)
+//                             .map_err(|err|
+//                                 format!("Failed to open {}: {}", file_path.display(), err)
+//                             )?;
+//                         file
+//                             .read_to_end(&mut buffer)
+//                             .map_err(|err|
+//                                 format!("Failed to read {}: {}", file_path.display(), err)
+//                             )?;
+//                         let base64_data = general_purpose::STANDARD_NO_PAD.encode(&buffer);
+//                         let mut addresses = base64_image_addresses.lock().unwrap();
+//                         addresses.push(base64_data);
+//                     }
+//                 }
+//                 Ok(()) as Result<(), String>
+//             })
+//         })
+//         .collect();
 
-    for entry in fs
-        ::read_dir(get_covers_directory())
-        .map_err(|err| format!("Failed to read directory: {}", err))? {
-        let entry = entry.map_err(|err| format!("Error reading directory entry: {}", err))?;
-        if let Some(file_name) = entry.file_name().to_str() {
-            // Assuming you only want to process image files (e.g., jpg, png)
-            if file_name.ends_with(".jpg") || file_name.ends_with(".png") {
-                let mut buffer = Vec::new();
-                let file_path = entry.path();
-                let mut file = File::open(&file_path).map_err(|err|
-                    format!("Failed to open {}: {}", file_path.display(), err)
-                )?;
-                file
-                    .read_to_end(&mut buffer)
-                    .map_err(|err| format!("Failed to read {}: {}", file_path.display(), err))?;
-                let base64_data = general_purpose::STANDARD_NO_PAD.encode(&buffer);
-                base64_image_addresses.push(base64_data);
-            }
-        }
-    }
+//     for handle in handles {
+//         handle.join().unwrap()?;
+//     }
 
-    Ok(base64_image_addresses)
-}
+//     let addresses = Arc::try_unwrap(base64_image_addresses)
+//         .map_err(|_| "Mutex still locked".to_string())?
+//         .into_inner()
+//         .map_err(|_| "Mutex still locked".to_string())?;
 
+//     Ok(addresses)
+// }
+
+/// Finds a chunk in the dataset that starts with the same letter as the key, returning the found value
+/// One this chunk is found we binary search within that section, theoretically faster
+///
+/// # Arguments
+///
+/// * `dataset` - A dataset sorted in alphabetical order
+/// * `key` - The key to look for
+///
 pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<usize> {
     let title = key.to_string();
     //handel lower case
@@ -154,6 +199,14 @@ pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<us
     }
 }
 
+/// Finds a chunk in the dataset that starts with the same letter as the key, returning the found index
+/// One this chunk is found we binary search within that section, theoretically faster
+///
+/// # Arguments
+///
+/// * `dataset` - A dataset sorted in alphabetical order
+/// * `key` - The key to look for
+///
 pub fn chunk_binary_search_index_load(dataset: &[Book], key: &String) -> Option<usize> {
     let title = key.to_string();
     //handel lower case
@@ -185,6 +238,15 @@ pub fn chunk_binary_search_index_load(dataset: &[Book], key: &String) -> Option<
     }
 }
 
+/// Looks in an Epubs resources for a given key with a given mime type, returning the data as a string
+///
+/// # Arguments
+///
+/// * `key_regex` - The key to look for as regex query
+/// * `mime_regex` - The mime type the key should have as a regex query
+/// * `epub_resources` - The epubs resources to look in
+/// * `doc` - A EpubDoc object to help with getting the resources
+///
 pub fn check_epub_resource(
     key_regex: Regex,
     mime_regex: Regex,

@@ -107,6 +107,13 @@ pub fn get_configuration_option(option_name: String) -> Option<String> {
     value
 }
 
+/// Changes the value of a settings item
+///
+/// # Arguments
+///
+/// * `option_name` - The setting to change
+/// * `value` - The new value to set
+///
 #[tauri::command(rename_all = "snake_case")]
 pub fn change_configuration_option(option_name: String, value: String) {
     load_settings_into_memory();
@@ -115,8 +122,12 @@ pub fn change_configuration_option(option_name: String, value: String) {
             map.insert(option_name.clone(), value.clone());
             let home_dir = get_home_dir();
             let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
-            let mut file = OpenOptions::new();
-            d.create(true).read(true).write(true).open(settings_path).unwrap();
+            let mut file = OpenOptions::new()
+                .create(true)
+                .read(true)
+                .write(true)
+                .open(settings_path)
+                .unwrap();
 
             let mut contents = String::new();
             file.read_to_string(&mut contents).unwrap();
