@@ -1,5 +1,10 @@
 use xmltree::Element;
 
+/// Recursivley looks for a image element in an xml file
+///
+/// # Arguments
+///
+/// * `element` - The parent element to look for image siblings in
 pub fn find_img_element(element: &Element) -> Option<&Element> {
     if element.name == "img" {
         Some(element)
@@ -15,6 +20,11 @@ pub fn find_img_element(element: &Element) -> Option<&Element> {
     }
 }
 
+/// Extracts the file name from a image element
+///
+/// # Arguments
+///
+/// * `element` - The image element to get the src attribute from
 pub fn extract_image_source(element: &Element) -> Option<String> {
     if let Some(source_element) = find_img_element(element) {
         if let Some(src) = source_element.attributes.get("src") {
