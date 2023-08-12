@@ -27,8 +27,7 @@ fn main() {
                 load_book,
                 change_configuration_option,
                 get_configuration_option,
-                shelf_settings_values,
-                base64_encode_covers
+                shelf_settings_values
             ]
         )
         .run(tauri::generate_context!())

@@ -6,7 +6,6 @@ use xmltree::Element;
 
 use crate::book::util::{
     chunk_binary_search_index_load,
-    base64_encode_book,
     base64_encode_file,
     get_home_dir,
     check_epub_resource,
@@ -73,7 +72,7 @@ pub fn load_book(title: String) -> Result<String, String> {
             let book_index = chunk_binary_search_index_load(books, &title);
             if let Some(book) = books.get(book_index.unwrap()) {
                 // Accessing the book at the specified index
-                return Ok(base64_encode_book(&book.book_location.to_string()).unwrap());
+                return Ok(base64_encode_file(&book.book_location.to_string()).unwrap());
             } else {
                 println!("Invalid index");
             }

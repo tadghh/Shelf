@@ -38,42 +38,6 @@ pub fn get_covers_directory() -> String {
     format!("{}/{}/{}", get_home_dir(), "cache", get_cover_image_folder_name())
 }
 
-//This isnt needed
-pub fn base64_encode_book(file_path: &str) -> Result<String, String> {
-    let mut buffer = Vec::new();
-
-    let mut file = match File::open(file_path) {
-        Ok(file) => file,
-        Err(_) => {
-            match
-                File::open(
-                    env
-                        ::current_exe()
-                        .expect("Failed to get current executable path")
-                        .parent()
-                        .expect("Failed to get parent directory")
-                )
-            {
-                Ok(file) => file,
-                Err(err) => {
-                    panic!("Failed to error: {}", err);
-                }
-            }
-        }
-    };
-
-    match file.read_to_end(&mut buffer) {
-        Ok(_) => (),
-        Err(err) => {
-            return Err(format!("Failed to read file: {}", err));
-        }
-    }
-
-    // Encode the file data as base64
-    let base64_data = general_purpose::STANDARD.encode(&buffer);
-    Ok(base64_data)
-}
-
 /// Encodes the data of a give file, returning the encoded data
 /// This is to get around CORS issues
 ///
@@ -89,21 +53,7 @@ pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
     let mut file = match File::open(file_path) {
         Ok(file) => file,
         Err(_) => {
-            match
-                File::open(
-                    env
-                        ::current_exe()
-                        .expect("Failed to get current executable path")
-                        .parent()
-                        .expect("Failed to get parent directory")
-                        .join("error.jpg")
-                )
-            {
-                Ok(file) => file,
-                Err(err) => {
-                    panic!("Failed to open error.jpg: {}", err);
-                }
-            }
+            return Err("There was an issue opening the file".to_string());
         }
     };
 
@@ -113,52 +63,6 @@ pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
     let base64_data = general_purpose::STANDARD_NO_PAD.encode(&buffer);
     Ok(base64_data)
 }
-
-// #[tauri::command(rename_all = "snake_case")]
-// pub fn base64_encode_covers() -> Result<Vec<String>, String> {
-//     let base64_image_addresses: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
-//     let handles: Vec<_> = fs
-//         ::read_dir(get_covers_directory())
-//         .map_err(|err| format!("Failed to read directory: {}", err))?
-//         .map(|entry| {
-//             let base64_image_addresses = Arc::clone(&base64_image_addresses);
-//             thread::spawn(move || {
-//                 let entry = entry.map_err(|err| format!("Error reading directory entry: {}", err))?;
-//                 if let Some(file_name) = entry.file_name().to_str() {
-//                     if file_name.ends_with(".jpg") || file_name.ends_with(".png") {
-//                         let mut buffer = Vec::new();
-//                         let file_path = entry.path();
-//                         let mut file = std::fs::File
-//                             ::open(&file_path)
-//                             .map_err(|err|
-//                                 format!("Failed to open {}: {}", file_path.display(), err)
-//                             )?;
-//                         file
-//                             .read_to_end(&mut buffer)
-//                             .map_err(|err|
-//                                 format!("Failed to read {}: {}", file_path.display(), err)
-//                             )?;
-//                         let base64_data = general_purpose::STANDARD_NO_PAD.encode(&buffer);
-//                         let mut addresses = base64_image_addresses.lock().unwrap();
-//                         addresses.push(base64_data);
-//                     }
-//                 }
-//                 Ok(()) as Result<(), String>
-//             })
-//         })
-//         .collect();
-
-//     for handle in handles {
-//         handle.join().unwrap()?;
-//     }
-
-//     let addresses = Arc::try_unwrap(base64_image_addresses)
-//         .map_err(|_| "Mutex still locked".to_string())?
-//         .into_inner()
-//         .map_err(|_| "Mutex still locked".to_string())?;
-
-//     Ok(addresses)
-// }
 
 /// Finds a chunk in the dataset that starts with the same letter as the key, returning the found value
 /// One this chunk is found we binary search within that section, theoretically faster
