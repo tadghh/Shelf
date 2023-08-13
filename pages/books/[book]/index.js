@@ -97,7 +97,7 @@ export default function Book() {
 
 
 	}, [book, router.events]);
-	//You can break it by squishing the window to small than it cant scroll 
+	//You can break it by squishing the window to small than it cant scroll
 	return (
 		<>
 			{bookLoaded &&

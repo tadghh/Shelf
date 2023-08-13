@@ -2,7 +2,6 @@
 import { invoke } from "@tauri-apps/api/tauri";
 import { useEffect, useState } from "react";
 import BookCover from "./book-cover";
-import Link from "next/link";
 import { isValidDirectoryPath } from "@/lib/regex";
 import NoDirectory from "../shelf/no-directory";
 
