@@ -1,4 +1,4 @@
-import BookDashboard from "@/components/book/dashboard";
+import BookDashboard from "@/components/book/book-dashboard";
 
 export default function Books() {
 	return (
