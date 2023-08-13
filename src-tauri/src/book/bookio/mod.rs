@@ -69,7 +69,7 @@ pub fn create_default_settings_file() {
         // File doesn't exist, create a new one with default values
         let default_settings =
             r#"
-            book_folder_location=E:/Books/Book/Epub
+            book_folder_location=None
             endless_scroll=false
         "#;
 
