@@ -60,7 +60,7 @@ pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
     file.read_to_end(&mut buffer).expect("There was an issue with the buffer");
 
     // Encode the file data as base64
-    let base64_data = general_purpose::STANDARD_NO_PAD.encode(&buffer);
+    let base64_data = general_purpose::STANDARD.encode(&buffer);
     Ok(base64_data)
 }
 
