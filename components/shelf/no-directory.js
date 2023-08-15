@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "next/link"
 export default function NoDirectory(){
     return (  <div className="flex justify-center min-h-screen ml-20 ">
     <div className="flex items-center ">
@@ -24,5 +24,5 @@ export default function NoDirectory(){
         </div> */}
       </div>
     </div>
-  </div>);
+  </div>)
 }

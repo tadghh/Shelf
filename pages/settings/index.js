@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 /* eslint-disable camelcase */
 import SettingsItem from "@/components/settings/settings-item";
 import { SettingsTypes } from "@/lib/SettingsTypeEnum";
@@ -6,7 +5,7 @@ import { SettingsItems } from "@/lib/SettingsItemEnum";
 import { useEffect, useState } from "react";
 
 export default function Settings() {
-  const [settingsItemsEnum, setSettingsItemsEnum] = useState(null);
+  const [settingsItemsEnum, setSettingsItemsEnum] = useState();
   useEffect(() => {
     async function loadEnum() {
       setSettingsItemsEnum(await SettingsItems());
