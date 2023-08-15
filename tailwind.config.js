@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+/* eslint-disable no-mixed-spaces-and-tabs */
 /** @type {import('tailwindcss').Config} */
 module.exports = {
 	content: [
@@ -7,6 +9,17 @@ module.exports = {
 	],
 	theme: {
 		extend: {
+			animation: {
+				fade: 'fadeOut .5s ease-in-out',
+			  },
+
+			  // that is actual animation
+			  keyframes: theme => ({
+				fadeOut: {
+				  '0%': { opacity: 0 },
+				  '100%': { opacity: 100 },
+				},
+			  }),
 			backgroundImage: {
 				"gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
 				"gradient-conic":
