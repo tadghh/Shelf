@@ -1,6 +1,5 @@
 import { open } from "@tauri-apps/api/dialog";
 import ToggleButton from "../Inputs/toggle-button";
-import { useEffect } from "react";
 const FileSettingComponent = ({ setter, status = "" }) => {
   return (
     <div

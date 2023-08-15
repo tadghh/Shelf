@@ -1,3 +1,4 @@
+/* eslint-disable no-mixed-spaces-and-tabs */
 import { Cog8ToothIcon, HomeIcon, StarIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 const navigation = [
