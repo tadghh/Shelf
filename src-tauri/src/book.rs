@@ -1,4 +1,4 @@
-use std::{ fs::{ OpenOptions, File }, path::Path, io::BufReader };
+use std::{ fs::{ OpenOptions, File }, path::{ Path, PathBuf }, io::BufReader };
 use serde::{ Deserialize, Serialize };
 use epub::doc::EpubDoc;
 use regex::Regex;
@@ -91,7 +91,7 @@ pub fn load_book(title: String) -> Result<String, String> {
 /// * `doc` - The epub documents itself
 /// * `cover_path` - The path to write the cover data too
 ///
-fn find_cover(mut doc: EpubDoc<BufReader<File>>, cover_path: &String) -> Result<(), String> {
+fn find_cover(mut doc: EpubDoc<BufReader<File>>, cover_path: &PathBuf) -> Result<(), PathBuf> {
     let epub_resources = doc.resources.clone();
 
     //The scenario where the cover_id has a xhtml file set as its property
@@ -133,7 +133,7 @@ fn find_cover(mut doc: EpubDoc<BufReader<File>>, cover_path: &String) -> Result<
 /// * `book_directory` - The directory of the book
 /// * `write_directory` - The path to write the cover data too
 ///
-fn create_cover(book_directory: String, write_directory: &String) -> Result<String, String> {
+fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result<PathBuf, String> {
     let mut doc = EpubDoc::new(book_directory).map_err(|err|
         format!("Error opening EpubDoc: {}", err)
     )?;
@@ -141,16 +141,15 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
     let epub_resources = doc.resources.clone();
 
     //Base filename off the books title
-    let cover_path = format!(
-        "{}/{}.jpg",
-        &write_directory,
-        sanitize_windows_filename(doc.mdata("title").unwrap())
+
+    let cover_path = &write_directory.join(
+        sanitize_windows_filename(format!("{}.jpg", doc.mdata("title").unwrap()))
     );
 
     //The below get_cover method only looks for a certain structure of cover image
     if doc.get_cover().is_some() {
         if let Err(err) = write_cover_image(doc.get_cover(), &cover_path) {
-            return Ok(err);
+            return Ok(err.to_path_buf());
         }
     } else {
         //Look for the cover_id in the epub, we are just looking for any property containing the word cover
@@ -167,14 +166,14 @@ fn create_cover(book_directory: String, write_directory: &String) -> Result<Stri
             let cover: Option<(Vec<u8>, String)> = doc.get_resource(&cover_id);
 
             if let Err(err) = write_cover_image(cover, &cover_path) {
-                return Ok(err);
+                return Ok(err.to_path_buf());
             }
-        } else if let Err(err) = find_cover(doc, &cover_path) {
+        } else if let Err(err) = find_cover(doc, cover_path) {
             return Ok(err);
         }
     }
 
-    Ok(cover_path)
+    Ok(cover_path.to_path_buf())
 }
 
 // #[tauri::command(rename_all = "snake_case")]

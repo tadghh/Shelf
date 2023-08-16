@@ -1,9 +1,9 @@
 use base64::{ engine::general_purpose, Engine as _ };
 use epub::doc::EpubDoc;
 use regex::Regex;
+use tauri::api::path::{ cache_dir, config_dir };
 
 use crate::shelf::get_cover_image_folder_name;
-
 use super::Book;
 use std::{ env, fs::File, io::{ Read, BufReader }, cmp::Ordering, collections::HashMap };
 
@@ -14,6 +14,14 @@ pub fn get_home_dir() -> String {
         Err(_) => String::new(), // Return an empty string as a default value
     }
 }
+// pub fn get_cache_dir() -> &str {
+//     cache_dir().unwrap().to_str().unwrap()
+//     // println!("{}", cache_dir().unwrap().to_str().unwrap());
+//     // match env::current_dir() {
+//     //     Ok(dir) => dir.to_string_lossy().replace('\\', "/"),
+//     //     Err(_) => String::new(), // Return an empty string as a default value
+//     // }
+// }
 
 /// Removes special charectars from a given string and returns it
 /// Some book titles contain charectars that arent compatible when used as filenames

@@ -1,22 +1,17 @@
 use epub::doc::EpubDoc;
+use tauri::api::path::cache_dir;
 use std::{
     fs::{ self, File, OpenOptions },
     io::{ BufReader, Write },
-    path::Path,
+    path::{ Path, PathBuf },
     sync::{ atomic::{ AtomicUsize, Ordering }, Arc, Mutex },
     time::Instant,
 };
 
 use rayon::prelude::{ IntoParallelRefIterator, ParallelIterator };
-
 use crate::{
     book::{ util::chunk_binary_search_index, BOOK_JSON, get_home_dir, Book, create_cover },
-    shelf::{
-        get_cache_file_name,
-        get_configuration_option,
-        get_cover_image_folder_name,
-        get_settings_name,
-    },
+    shelf::{ get_cache_file_name, get_configuration_option, get_settings_name },
 };
 
 /// Writes the cover image to the specified path
@@ -26,16 +21,18 @@ use crate::{
 /// * `data` - A vector containing the image data
 /// * `path` - A string representing the path to write to
 ///
-pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &String) -> Result<(), String> {
+pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &PathBuf) -> Result<(), &PathBuf> {
     if let Some(data) = data {
         let mut file = match File::create(path) {
             Err(..) => {
-                return Err(format!("{}/{}", get_home_dir(), "error.jpg"));
+                return Err(path);
+                // return Err(format!("{}/{}", get_home_dir(), "error.jpg"));
             }
             Ok(file) => file,
         };
         if file.write_all(&data.0).is_err() {
-            return Err(format!("{}/{}", get_home_dir(), "error.jpg"));
+            // return Err(format!("{}/{}", get_home_dir(), "error.jpg"));
+            return Err(path);
         }
     }
 
@@ -94,7 +91,7 @@ pub fn create_default_settings_file() {
 /// * `items` - A vector containing the book directories
 /// * `write_directory` - A string representing the path to write to
 ///
-pub fn create_book_vec(items: &Vec<String>, write_directory: &String) -> Vec<Book> {
+pub fn create_book_vec(items: &Vec<String>, write_directory: &PathBuf) -> Vec<Book> {
     let books: Vec<Book> = items
         .par_iter()
         .filter_map(|item| {
@@ -102,7 +99,7 @@ pub fn create_book_vec(items: &Vec<String>, write_directory: &String) -> Vec<Boo
 
             if let Ok(cover_location) = create_cover(item.to_string(), write_directory) {
                 let new_book = Book {
-                    cover_location,
+                    cover_location: cover_location.to_string_lossy().to_string(),
                     book_location: item.replace('\\', "/"),
                     title,
                 };
@@ -152,7 +149,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         .collect();
 
     let cache_directory = create_directory(&get_home_dir(), "cache");
-    let covers_directory = create_directory(&cache_directory, get_cover_image_folder_name());
+    let covers_directory = &cache_dir().unwrap();
 
     unsafe {
         if BOOK_JSON.json_path != json_path {
@@ -183,8 +180,11 @@ pub fn initialize_books() -> Option<Vec<Book>> {
                         let new_book = Book {
                             cover_location: create_cover(
                                 item_normalized.to_string(),
-                                &covers_directory
-                            ).unwrap(),
+                                covers_directory
+                            )
+                                .unwrap()
+                                .to_string_lossy()
+                                .to_string(),
                             book_location: item_normalized,
                             title,
                         };
@@ -202,7 +202,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             }
         }
     } else {
-        book_json = create_book_vec(&epubs, &covers_directory);
+        book_json = create_book_vec(&epubs, covers_directory);
         println!("{} length", book_json.len());
         file_changes = true;
     }
