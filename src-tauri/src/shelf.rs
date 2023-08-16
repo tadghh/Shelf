@@ -2,14 +2,21 @@ use std::{
     collections::HashMap,
     fs::OpenOptions,
     io::{ BufRead, BufReader, Seek, SeekFrom, Write, Read },
+    path::PathBuf,
 };
 
-use crate::book::{ bookio::create_default_settings_file, util::get_home_dir };
+use tauri::api::path::config_dir;
+
+use crate::book::bookio::create_default_settings_file;
 
 static CACHE_FILE_NAME: &str = "book_cache.json";
 static SETTINGS_FILE_NAME: &str = "shelf_settings.conf";
 static COVER_IMAGE_FOLDER_NAME: &str = "cover_cache";
 static mut SETTINGS_MAP: Option<HashMap<String, String>> = None;
+
+fn get_settings_path() -> PathBuf {
+    config_dir().unwrap().join(SETTINGS_FILE_NAME)
+}
 
 ///Get the name of the cover image folder
 pub fn get_cover_image_folder_name() -> &'static str {
@@ -42,8 +49,9 @@ pub fn shelf_settings_values() -> HashMap<String, String> {
 fn load_settings_into_memory() {
     unsafe {
         if SETTINGS_MAP.is_none() {
-            let home_dir = get_home_dir();
-            let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
+            //let home_dir = get_home_dir();
+            // let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
+            let settings_path = get_settings_path();
             // Check if the file already exists
             let file = match
                 OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
@@ -92,15 +100,17 @@ pub fn get_configuration_option(option_name: String) -> Option<String> {
         change_configuration_option(option_name.clone(), "Unset".to_string());
 
         // Recheck the value after attempting to change the option
-        if
-            let Some(updated_value) = (unsafe {
-                SETTINGS_MAP.as_ref().and_then(|map| map.get(&option_name).cloned())
-            })
-        {
-            return Some(updated_value);
-        } else {
-            eprintln!("Failed to set option: {}", option_name);
-            return None;
+        unsafe {
+            if
+                let Some(updated_value) = SETTINGS_MAP.as_ref().and_then(|map|
+                    map.get(&option_name).cloned()
+                )
+            {
+                return Some(updated_value);
+            } else {
+                eprintln!("Failed to set option: {}", option_name);
+                return None;
+            }
         }
     }
 
@@ -114,14 +124,15 @@ pub fn get_configuration_option(option_name: String) -> Option<String> {
 /// * `option_name` - The setting to change
 /// * `value` - The new value to set
 ///
+///
 #[tauri::command(rename_all = "snake_case")]
 pub fn change_configuration_option(option_name: String, value: String) {
     load_settings_into_memory();
     unsafe {
         if let Some(map) = &mut SETTINGS_MAP {
             map.insert(option_name.clone(), value.clone());
-            let home_dir = get_home_dir();
-            let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
+            // let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
+            let settings_path = get_settings_path();
             let mut file = OpenOptions::new()
                 .create(true)
                 .read(true)

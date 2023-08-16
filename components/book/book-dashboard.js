@@ -18,7 +18,7 @@ export default function BookDashboard() {
   useEffect(() => {
     async function loadImages() {
       const start = performance.now();
-
+      console.log("yo");
       const bookCovers = await invoke("initialize_books");
       const bookCoverPaths = await Promise.all(
         bookCovers.map(async (book) => {
@@ -40,6 +40,8 @@ export default function BookDashboard() {
       if (isValidDirectoryPath(data)) {
         setDirectoryStatus(data);
         loadImages();
+      }else{
+        console.log(data);
       }
     });
   }, []);

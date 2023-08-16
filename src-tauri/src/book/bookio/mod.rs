@@ -1,5 +1,5 @@
 use epub::doc::EpubDoc;
-use tauri::api::path::cache_dir;
+use tauri::api::path::{ cache_dir, config_dir };
 use std::{
     fs::{ self, File, OpenOptions },
     io::{ BufReader, Write },
@@ -10,7 +10,7 @@ use std::{
 
 use rayon::prelude::{ IntoParallelRefIterator, ParallelIterator };
 use crate::{
-    book::{ util::chunk_binary_search_index, BOOK_JSON, get_home_dir, Book, create_cover },
+    book::{ util::chunk_binary_search_index, BOOK_JSON, Book, create_cover },
     shelf::{ get_cache_file_name, get_configuration_option, get_settings_name },
 };
 
@@ -39,27 +39,9 @@ pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &PathBuf) -> Res
     Ok(())
 }
 
-/// Creates a directory and returns its path
-///
-/// # Arguments
-///
-/// * `path` - A string representing the directory to be made
-/// * `new_folder_name` - A string, the new folders name
-///
-fn create_directory(path: &String, new_folder_name: &str) -> String {
-    let created_dir = Path::new(&path).join(new_folder_name);
-    if !Path::new(&created_dir).exists() {
-        if let Err(err) = std::fs::create_dir_all(&created_dir) {
-            eprintln!("Failed to create folder: {}", err);
-        }
-    }
-    return created_dir.to_string_lossy().replace('\\', "/");
-}
-
 /// Creates the default settings file if none exists
 pub fn create_default_settings_file() {
-    let home_dir = get_home_dir();
-    let settings_path = format!("{}/{}", home_dir, get_settings_name());
+    let settings_path = config_dir().unwrap().join(get_settings_name());
 
     // Check if the file already exists
     if fs::metadata(&settings_path).is_err() {
@@ -126,7 +108,13 @@ pub fn initialize_books() -> Option<Vec<Book>> {
 
     let mut book_json: Vec<Book>;
 
-    let json_path = format!("{}/{}", get_home_dir(), get_cache_file_name());
+    let json_path = config_dir()
+        .unwrap()
+        .join(get_cache_file_name())
+        .to_string_lossy()
+        .to_string()
+        .clone();
+    println!("Its here {}", json_path);
     let dir = match get_configuration_option("book_folder_location".to_string()) {
         Some(val) => val,
         None => {
@@ -148,12 +136,11 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         })
         .collect();
 
-    let cache_directory = create_directory(&get_home_dir(), "cache");
     let covers_directory = &cache_dir().unwrap();
 
     unsafe {
         if BOOK_JSON.json_path != json_path {
-            BOOK_JSON.update_path(json_path.to_string());
+            BOOK_JSON.update_path(json_path.clone());
         }
     }
 

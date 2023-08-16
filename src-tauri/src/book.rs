@@ -4,12 +4,7 @@ use epub::doc::EpubDoc;
 use regex::Regex;
 use xmltree::Element;
 
-use crate::book::util::{
-    chunk_binary_search_index_load,
-    base64_encode_file,
-    get_home_dir,
-    check_epub_resource,
-};
+use crate::book::util::{ chunk_binary_search_index_load, base64_encode_file, check_epub_resource };
 use crate::xml::extract_image_source;
 
 use self::bookio::write_cover_image;
@@ -58,7 +53,7 @@ pub struct Book {
 #[tauri::command]
 pub fn load_book(title: String) -> Result<String, String> {
     unsafe {
-        let book_cache: &String = &BOOK_JSON.json_path.to_owned();
+        let book_cache: &String = &BOOK_JSON.json_path;
 
         if Path::new(&book_cache).exists() {
             let file = OpenOptions::new().read(true).write(true).create(true).open(book_cache);
@@ -148,7 +143,7 @@ fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result<Pat
 
     //The below get_cover method only looks for a certain structure of cover image
     if doc.get_cover().is_some() {
-        if let Err(err) = write_cover_image(doc.get_cover(), &cover_path) {
+        if let Err(err) = write_cover_image(doc.get_cover(), cover_path) {
             return Ok(err.to_path_buf());
         }
     } else {
@@ -165,7 +160,7 @@ fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result<Pat
         {
             let cover: Option<(Vec<u8>, String)> = doc.get_resource(&cover_id);
 
-            if let Err(err) = write_cover_image(cover, &cover_path) {
+            if let Err(err) = write_cover_image(cover, cover_path) {
                 return Ok(err.to_path_buf());
             }
         } else if let Err(err) = find_cover(doc, cover_path) {
@@ -175,30 +170,3 @@ fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result<Pat
 
     Ok(cover_path.to_path_buf())
 }
-
-// #[tauri::command(rename_all = "snake_case")]
-// pub fn get_cover(book_title: String) -> Result<String, String> {
-//     unsafe {
-//         let open_file: &String = &BOOK_JSON.json_path.to_owned();
-
-//         if Path::new(&open_file).exists() {
-//             let file = OpenOptions::new().read(true).write(true).create(true).open(open_file);
-
-//             BOOK_JSON.update_books(match serde_json::from_reader(BufReader::new(file.unwrap())) {
-//                 Ok(data) => data,
-//                 Err(_) => Vec::new(),
-//             });
-
-//             let books = &BOOK_JSON.books;
-//             let book_index = chunk_binary_search_index_load(books, &book_title);
-//             if let Some(book) = books.get(book_index.unwrap()) {
-//                 return Ok(base64_encode_file(&book.cover_location.to_string()).unwrap());
-//             } else {
-//                 println!("Invalid index");
-//             }
-//         } else {
-//             return Err("JSON File missing".to_string());
-//         }
-//     }
-//     Err("Error occured".to_string())
-// }
