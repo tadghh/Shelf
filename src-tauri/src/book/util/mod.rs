@@ -1,9 +1,16 @@
 use base64::{ engine::general_purpose, Engine as _ };
 use epub::doc::EpubDoc;
 use regex::Regex;
+use tauri::api::path::{ cache_dir, config_dir };
 
 use super::Book;
-use std::{ fs::File, io::{ Read, BufReader }, cmp::Ordering, collections::HashMap };
+use std::{
+    fs::{ File, self },
+    io::{ Read, BufReader },
+    cmp::Ordering,
+    collections::HashMap,
+    path::PathBuf,
+};
 
 /// Removes special charectars from a given string and returns it
 /// Some book titles contain charectars that arent compatible when used as filenames
@@ -22,7 +29,27 @@ pub fn sanitize_windows_filename(filename: String) -> String {
 
     sanitized
 }
+pub fn get_config_dir() -> PathBuf {
+    let mut full_config_path = config_dir().expect("Failed to get config directory");
+    full_config_path.push("shelf\\config"); // Use forward slashes
+    println!("Path: {:?}", full_config_path.to_str().unwrap());
 
+    if let Err(err) = fs::create_dir_all(&full_config_path) {
+        eprintln!("Error creating cache directory: {:?}", err);
+    }
+    full_config_path
+}
+pub fn get_cache_dir() -> PathBuf {
+    let mut cache_dir = cache_dir().expect("Failed to get cache directory");
+    cache_dir.push("shelf\\covers"); // Use forward slashes
+    println!("Path: {:?}", cache_dir.to_str().unwrap());
+
+    if let Err(err) = fs::create_dir_all(&cache_dir) {
+        eprintln!("Error creating cache directory: {:?}", err);
+    }
+
+    cache_dir
+}
 /// Encodes the data of a give file, returning the encoded data
 /// This is to get around CORS issues
 ///

@@ -5,9 +5,7 @@ use std::{
     path::PathBuf,
 };
 
-use tauri::api::path::config_dir;
-
-use crate::book::bookio::create_default_settings_file;
+use crate::book::{ bookio::create_default_settings_file, util::get_config_dir };
 
 static CACHE_FILE_NAME: &str = "book_cache.json";
 static SETTINGS_FILE_NAME: &str = "shelf_settings.conf";
@@ -15,7 +13,7 @@ static COVER_IMAGE_FOLDER_NAME: &str = "cover_cache";
 static mut SETTINGS_MAP: Option<HashMap<String, String>> = None;
 
 fn get_settings_path() -> PathBuf {
-    config_dir().unwrap().join(SETTINGS_FILE_NAME)
+    get_config_dir().join(SETTINGS_FILE_NAME)
 }
 
 ///Get the name of the cover image folder

@@ -1,5 +1,4 @@
 use epub::doc::EpubDoc;
-use tauri::api::path::{ cache_dir, config_dir };
 use std::{
     fs::{ self, File, OpenOptions },
     io::{ BufReader, Write },
@@ -10,9 +9,11 @@ use std::{
 
 use rayon::prelude::{ IntoParallelRefIterator, ParallelIterator };
 use crate::{
-    book::{ util::chunk_binary_search_index, BOOK_JSON, Book, create_cover },
+    book::{ util::{ chunk_binary_search_index, get_cache_dir }, BOOK_JSON, Book, create_cover },
     shelf::{ get_cache_file_name, get_configuration_option, get_settings_name },
 };
+
+use super::util::get_config_dir;
 
 /// Writes the cover image to the specified path
 ///
@@ -41,7 +42,7 @@ pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &PathBuf) -> Res
 
 /// Creates the default settings file if none exists
 pub fn create_default_settings_file() {
-    let settings_path = config_dir().unwrap().join(get_settings_name());
+    let settings_path = get_config_dir().join(get_settings_name());
 
     // Check if the file already exists
     if fs::metadata(&settings_path).is_err() {
@@ -108,8 +109,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
 
     let mut book_json: Vec<Book>;
 
-    let json_path = config_dir()
-        .unwrap()
+    let json_path = get_cache_dir()
         .join(get_cache_file_name())
         .to_string_lossy()
         .to_string()
@@ -136,7 +136,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         })
         .collect();
 
-    let covers_directory = &cache_dir().unwrap();
+    let covers_directory = &get_cache_dir();
 
     unsafe {
         if BOOK_JSON.json_path != json_path {
