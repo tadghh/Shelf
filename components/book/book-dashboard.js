@@ -53,7 +53,7 @@ export default function BookDashboard() {
               <BookCover
                 className="py-4"
                 key={index}
-                coverPath={imageData[index]}
+                coverPath={data}
                 title={titleData[index]?.title}
               />
             ))}
