@@ -1,5 +1,6 @@
 /* eslint-disable camelcase */
 import { invoke } from "@tauri-apps/api/tauri";
+import { appWindow} from  "@tauri-apps/api/window";
 import { useRouter } from "next/router";
 import { useState, useEffect, useRef } from "react";
 import ePub from "epubjs";
@@ -92,19 +93,12 @@ export default function Book() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      import("@tauri-apps/api/window").then((module) => {
-        const { appWindow } = module;
         appWindow.setTitle(book);
-      });
     }
 
     router.events.on("routeChangeStart", () => {
-      if (typeof window !== "undefined") {
-        import("@tauri-apps/api/window").then((module) => {
-          const { appWindow } = module;
           appWindow.setTitle("Shelf");
-        });
-      }
+
     });
   }, [book, router.events]);
   //You can break it by squishing the window to small than it cant scroll
