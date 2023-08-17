@@ -15,7 +15,7 @@ rust-version = "1.59"
 tauri-build = { version = "1.2.1", features = [] }
 
 [dependencies]
-tauri = { version = "1.2.4", features = [ "window-set-size", "window-set-min-size", "protocol-asset", "window-set-title", "dialog-all", "fs-all", "path-all"] }
+tauri = { version = "1.2.4", features = [ "dialog-open", "window-set-size", "window-set-min-size", "protocol-asset", "window-set-title"] }
 epub = "2.0.0"
 rand = "0.8.5"
 serde = { version = "1.0", features = ["derive"] }

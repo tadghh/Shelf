@@ -13,30 +13,19 @@
   },
   "tauri": {
     "allowlist": {
-      "path": {
-        "all": true
-      },
-      "fs": {
-        "all": true,
-        "scope": ["**"]
-      },"protocol": {
+
+
+      "protocol": {
         "asset": true,
         "assetScope": ["**"]
       },
       "dialog": {
-        "all": true,
-        "ask": true,
-        "confirm": true,
-        "message": true,
-        "open": true,
-        "save": true
+        "open": true
       },
       "window": {
         "setTitle": true,
         "setMinSize": true,
         "setSize": true
-
-
       }
     },
     "bundle": {
