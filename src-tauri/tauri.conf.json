@@ -13,8 +13,6 @@
   },
   "tauri": {
     "allowlist": {
-
-
       "protocol": {
         "asset": true,
         "assetScope": ["**"]
@@ -76,7 +74,6 @@
         "width": 800,
         "minWidth": 710,
         "minHeight": 500
-
       }
     ]
   }
