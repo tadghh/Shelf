@@ -32,7 +32,11 @@
         "save": true
       },
       "window": {
-        "setTitle": true
+        "setTitle": true,
+        "setMinSize": true,
+        "setSize": true
+
+
       }
     },
     "bundle": {
@@ -80,7 +84,10 @@
         "height": 600,
         "resizable": true,
         "title": "Shelf",
-        "width": 800
+        "width": 800,
+        "minWidth": 710,
+        "minHeight": 500
+
       }
     ]
   }
