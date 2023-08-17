@@ -30,7 +30,9 @@ body {
 body::-webkit-scrollbar {
     width: .5em;
 }
-
+:root {
+	--book-margin: 5rem; /* Change this to your preferred margin value */
+  }
 
 body::-webkit-scrollbar-thumb {
   border-radius: 4px;
