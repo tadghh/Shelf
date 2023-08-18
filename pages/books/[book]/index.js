@@ -1,6 +1,6 @@
 /* eslint-disable camelcase */
 import { invoke } from "@tauri-apps/api/tauri";
-import { appWindow} from  "@tauri-apps/api/window";
+import { appWindow } from "@tauri-apps/api/window";
 import { useRouter } from "next/router";
 import { useState, useEffect, useRef } from "react";
 import ePub from "epubjs";
@@ -14,15 +14,24 @@ export default function Book() {
   const [bookRender, setBookRender] = useState();
   const [scrollStyle, setScrollStyle] = useState("false");
 
-  const [backgroundData, setBackgroundData] = useState(null);
   const [bookLoaded, setBookLoaded] = useState(false);
 
-  const [viewerHeight, setViewerHeight] = useState(window.innerHeight - 40); // Adjust margin as needed
-  const [viewerWidth, setViewerWidth] = useState(window.innerWidth - 40); // Adjust margin as needed
+  //calculate the width of the book
+  const bookSize = () => {
+    return window.innerWidth - 160 > 800 ? 800 : window.innerWidth - 180;
+  };
+
+  const [viewerHeight, setViewerHeight] = useState(window.innerHeight - 40);
+  const [viewerWidth, setViewerWidth] = useState(bookSize + 20);
+
   useEffect(() => {
     const handleResize = () => {
-      setViewerHeight(window.innerHeight - 40); // Adjust margin as needed
-      setViewerWidth(window.innerWidth - 140); // Adjust margin as needed
+      //less than the max and greater than the min
+      setViewerHeight(window.innerHeight - 40);
+      setViewerWidth(window.innerWidth - 140);
+      if (bookRender) {
+        bookRender.resize(bookSize(), window.innerHeight - 40);
+      }
     };
 
     window.addEventListener("resize", handleResize);
@@ -30,7 +39,7 @@ export default function Book() {
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, []);
+  }, [bookRender]);
   useEffect(() => {
     async function loadBook() {
       if (book !== undefined && !bookOpen) {
@@ -42,10 +51,6 @@ export default function Book() {
 
         if (bookData.length !== 0 && !bookLoaded.isOpen) {
           let endlessScrollValue;
-
-          invoke("get_cover", { book_title: book }).then((data) => {
-            setBackgroundData(data);
-          });
 
           invoke("get_configuration_option", {
             option_name: "endless_scroll",
@@ -64,6 +69,7 @@ export default function Book() {
           try {
             bookLoaded.ready.then(() => {
               //I dont like this null here but nmp atm
+              let bookWidth = bookSize() + "";
 
               const rendition = bookLoaded.renderTo(
                 document.getElementById("viewer"),
@@ -71,11 +77,13 @@ export default function Book() {
                   manager:
                     endlessScrollValue === "true" ? "continuous" : "default",
                   flow: endlessScrollValue === "true" ? "scrolled" : null,
-                  width: "100%",
-                  height: "80%",
+                  width: bookWidth,
+                  height: "100%",
+                  spread: "none",
                 }
               );
-
+              // rendition.resize(800, window.innerHeight - 40 );
+              console.log(rendition);
               setBookRender(rendition);
               rendition.display();
             });
@@ -93,12 +101,11 @@ export default function Book() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-        appWindow.setTitle(book);
+      appWindow.setTitle(book);
     }
 
     router.events.on("routeChangeStart", () => {
-          appWindow.setTitle("Shelf");
-
+      appWindow.setTitle("Shelf");
     });
   }, [book, router.events]);
   //You can break it by squishing the window to small than it cant scroll
@@ -117,12 +124,12 @@ export default function Book() {
             {scrollStyle ? (
               <div
                 id="viewer"
-                className="bg-white overflow-hidden ml-20  my-10 rounded w-[800px] h-auto "
+                className="bg-white overflow-hidden ml-20  my-10 rounded w-[850px] h-auto "
               ></div>
             ) : (
               <div
                 id="controls"
-                className="z-50 flex justify-between ml-20 border rounded-xl max-w-[800px]  "
+                className="z-40 flex justify-between  ml-20 border rounded-xl max-w-[840px]  overflow-hidden"
                 style={{
                   height: `${viewerHeight}px`,
                   width: `${viewerWidth}px`,
@@ -130,16 +137,19 @@ export default function Book() {
               >
                 <div
                   onClick={() => bookRender.prev()}
-                  className="w-[20px] h-auto px-2 text-xs font-semibold text-gray-900 shadow-sm grow-0 "
+                  className="w-[20px] h-auto px-2 text-xs font-semibold bg-gradient-to-r from-black to-white text-gray-900 shadow-sm grow-0 "
                 ></div>
                 <div
                   id="viewer"
-                  className="bg-white "
-                  style={{ width: `${viewerWidth}px` }}
+                  className="items-center bg-white grow"
+                  style={{
+                    height: `${viewerHeight}px`,
+                    width: `${viewerWidth}px`,
+                  }}
                 ></div>
                 <div
                   onClick={() => bookRender.next()}
-                  className="px-2 py-1 w-[20px] text-xs font-semibold text-gray-900 shadow-sm grow-0 "
+                  className="px-2 py-1 w-[20px] z-50 text-xs font-semibold text-gray-900 bg-gradient-to-l from-black to-white shadow-sm grow-0 "
                 ></div>
               </div>
             )}
