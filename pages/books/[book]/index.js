@@ -31,6 +31,7 @@ export default function Book() {
       setViewerWidth(window.innerWidth - 140);
       if (bookRender) {
         bookRender.resize(bookSize(), window.innerHeight - 40);
+        bookRender.resize(bookSize(), window.innerHeight - 40);
       }
     };
 
@@ -39,7 +40,7 @@ export default function Book() {
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [bookRender]);
+  }, []);
   useEffect(() => {
     async function loadBook() {
       if (book !== undefined && !bookOpen) {
@@ -115,21 +116,22 @@ export default function Book() {
     <>
       {bookLoaded && (
         <div
-          className="flex flex-col items-center max-h-screen justify-items-center "
-          //   style={{
-          //     backgroundImage: `url('data:image/jpeg;base64,${backgroundData}')`,
-          //   }}
+          className="flex flex-col items-center max-h-screen overflow-hidden justify-items-center "
+
         >
-          <div className="flex flex-col items-center my-5 backdrop-filter backdrop-blur justify-items-center ">
+          <div className="flex flex-col items-center w-full h-full my-5 overflow-hidden justify-items-center ">
             {scrollStyle ? (
               <div
                 id="viewer"
-                className="bg-white overflow-hidden ml-20  my-10 rounded w-[850px] h-auto "
+                className=" ml-20 overflow-hidden bg-white max-w-[780px] h-[1800px] rounded "
+                style={{
+                  width: `${viewerWidth}px`,
+                }}
               ></div>
             ) : (
               <div
                 id="controls"
-                className="z-40 flex justify-between  ml-20 border rounded-xl max-w-[840px]  overflow-hidden"
+                className="z-40 flex  justify-between ml-20    border max-w-[840px] rounded-xl"
                 style={{
                   height: `${viewerHeight}px`,
                   width: `${viewerWidth}px`,
