@@ -71,18 +71,33 @@ export default function Book() {
             bookLoaded.ready.then(() => {
               //I dont like this null here but nmp atm
               let bookWidth = bookSize() + "";
+              let rendition;
+              if (endlessScrollValue) {
+                rendition = bookLoaded.renderTo(
+                  document.getElementById("viewer"),
+                  {
+                    manager:
+                      endlessScrollValue === "true" ? "continuous" : "default",
+                    flow: endlessScrollValue === "true" ? "scrolled" : null,
+                    width: bookWidth,
+                    height: "1800",
+                    spread: "none",
+                  }
+                );
+              } else {
+                rendition = bookLoaded.renderTo(
+                  document.getElementById("viewer"),
+                  {
+                    manager:
+                      endlessScrollValue === "true" ? "continuous" : "default",
+                    flow: endlessScrollValue === "true" ? "scrolled" : null,
+                    width: bookWidth,
+                    height: "100%",
+                    spread: "none",
+                  }
+                );
+              }
 
-              const rendition = bookLoaded.renderTo(
-                document.getElementById("viewer"),
-                {
-                  manager:
-                    endlessScrollValue === "true" ? "continuous" : "default",
-                  flow: endlessScrollValue === "true" ? "scrolled" : null,
-                  width: bookWidth,
-                  height: "100%",
-                  spread: "none",
-                }
-              );
               // rendition.resize(800, window.innerHeight - 40 );
               console.log(rendition);
               setBookRender(rendition);
@@ -115,19 +130,24 @@ export default function Book() {
   return (
     <>
       {bookLoaded && (
-        <div
-          className="flex flex-col items-center max-h-screen overflow-hidden justify-items-center "
-
-        >
+        <div className="flex flex-col items-center max-h-screen justify-items-center ">
           <div className="flex flex-col items-center w-full h-full my-5 overflow-hidden justify-items-center ">
             {scrollStyle ? (
-              <div
-                id="viewer"
-                className=" ml-20 overflow-hidden bg-white max-w-[780px] h-[1800px] rounded "
-                style={{
-                  width: `${viewerWidth}px`,
-                }}
-              ></div>
+              <>
+                <div
+                  id="viewer"
+                  className=" ml-20 overflow-hidden bg-white max-w-[800px] h-[1800px] rounded "
+                  style={{
+                    width: `${viewerWidth}px`,
+                  }}
+                ></div>
+                <div
+                  className="max-w-[800px] ml-20 h-[150px] bg-gradient-to-b to-black from-white bottom-12"
+                  style={{
+                    width: `${viewerWidth}px`,
+                  }}
+                ></div>
+              </>
             ) : (
               <div
                 id="controls"
