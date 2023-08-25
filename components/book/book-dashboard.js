@@ -9,6 +9,7 @@ export default function BookDashboard() {
   const [imageData, setImageData] = useState([]);
   const [titleData, setTitleData] = useState([]);
   const [directoryStatus, setDirectoryStatus] = useState(false);
+  const [directoryChecked, setDirectoryChecked] = useState(false);
   const [imagesStatus, setImagesStatus] = useState();
   const updateTitleAndImageData = (titles, images) => {
     setTitleData(titles);
@@ -44,9 +45,12 @@ export default function BookDashboard() {
       } else {
         console.log(data);
       }
+      setDirectoryChecked(true);
     });
   }, []);
-
+  if (!directoryChecked) {
+    return <></>;
+  }
   return directoryStatus ? (
     <>
       {imagesStatus ? (
@@ -65,6 +69,6 @@ export default function BookDashboard() {
       )}
     </>
   ) : (
-    <></>
+    <NoDirectory/>
   );
 }
