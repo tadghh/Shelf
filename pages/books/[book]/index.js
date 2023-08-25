@@ -9,10 +9,11 @@ export default function Book() {
   const router = useRouter();
   const { book } = router.query;
   const bookRef = useRef(null);
-  const [bookData, setBookData] = useState("");
+  // const [bookData, setBookData] = useState("");
+  const [epubBook, setEpubBook] = useState();
   const [bookOpen, setBookOpen] = useState(false);
   const [bookRender, setBookRender] = useState();
-  const [scrollStyle, setScrollStyle] = useState("false");
+  const [scrollStyle, setScrollStyle] = useState(false);
 
   const [bookLoaded, setBookLoaded] = useState(false);
 
@@ -23,45 +24,34 @@ export default function Book() {
 
   const [viewerHeight, setViewerHeight] = useState(window.innerHeight - 40);
   const [viewerWidth, setViewerWidth] = useState(bookSize + 20);
-
   useEffect(() => {
-    const handleResize = () => {
-      //less than the max and greater than the min
-      setViewerHeight(window.innerHeight - 40);
-      setViewerWidth(window.innerWidth - 140);
-      if (bookRender) {
-        bookRender.resize(bookSize(), window.innerHeight - 40);
-        bookRender.resize(bookSize(), window.innerHeight - 40);
+    invoke("get_configuration_option", {
+      option_name: "endless_scroll",
+    }).then((data) => {
+      if (data) {
+        setScrollStyle(data === "true" ? true : false);
       }
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    });
   }, []);
+  // function bookSetup() {
+  //   if(!epubBook.isOpen){
+  //     bookRef.current = epubBook;
+
+  //   }
+  // }
   useEffect(() => {
     async function loadBook() {
+      console.log("Loading book");
       if (book !== undefined && !bookOpen) {
-        setBookData(await invoke("load_book", { title: book }));
+        const bookData =  await invoke("load_book", { title: book });
+        // setBookData(await invoke("load_book", { title: book }));
 
         const bookLoaded = ePub({
           encoding: "base64",
         });
-
+        setEpubBook(bookLoaded);
         if (bookData.length !== 0 && !bookLoaded.isOpen) {
-          let endlessScrollValue;
 
-          invoke("get_configuration_option", {
-            option_name: "endless_scroll",
-          }).then((data) => {
-            if (data) {
-              endlessScrollValue = data;
-
-              setScrollStyle(endlessScrollValue === "true");
-            }
-          });
 
           bookRef.current = bookLoaded;
 
@@ -72,25 +62,24 @@ export default function Book() {
               //I dont like this null here but nmp atm
               let bookWidth = bookSize() + "";
               let rendition;
-              if (endlessScrollValue) {
+              //console.log(typeof endlessScrollValue);
+              if (scrollStyle) {
                 rendition = bookLoaded.renderTo(
                   document.getElementById("viewer"),
                   {
-                    manager:
-                      endlessScrollValue === "true" ? "continuous" : "default",
-                    flow: endlessScrollValue === "true" ? "scrolled" : null,
+                    manager: "continuous",
+                    flow: "scrolled",
                     width: bookWidth,
-                    height: "1800",
+                    height: "1500",
                     spread: "none",
                   }
                 );
               } else {
+                console.log("yo");
                 rendition = bookLoaded.renderTo(
                   document.getElementById("viewer"),
                   {
-                    manager:
-                      endlessScrollValue === "true" ? "continuous" : "default",
-                    flow: endlessScrollValue === "true" ? "scrolled" : null,
+                    manager: "default",
                     width: bookWidth,
                     height: "100%",
                     spread: "none",
@@ -106,6 +95,8 @@ export default function Book() {
           } catch {
             //handle this
           }
+          console.log("reffer");
+          console.log(bookRef);
           setBookLoaded(true);
           setBookOpen(true);
         }
@@ -113,7 +104,29 @@ export default function Book() {
     }
 
     loadBook();
-  }, [book, bookRef, bookData, bookOpen]);
+  }, [book, bookRef,  bookOpen]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      //less than the max and greater than the min
+      setViewerHeight(window.innerHeight - 40);
+      setViewerWidth(window.innerWidth - 140);
+      if (bookRender) {
+        console.log("wow");
+        console.log(bookRender);
+        console.log(bookSize());
+
+        bookRender.resize(bookSize(), window.innerHeight - 40);
+        //bookRender.resize(bookSize(), window.innerHeight - 40);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [bookRender]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -132,49 +145,31 @@ export default function Book() {
       {bookLoaded && (
         <div className="flex flex-col items-center max-h-screen justify-items-center ">
           <div className="flex flex-col items-center w-full h-full my-5 overflow-hidden justify-items-center ">
-            {scrollStyle ? (
-              <>
-                <div
-                  id="viewer"
-                  className=" ml-20 overflow-hidden bg-white max-w-[800px] h-[1800px] rounded "
-                  style={{
-                    width: `${viewerWidth}px`,
-                  }}
-                ></div>
-                <div
-                  className="max-w-[800px] ml-20 h-[150px] bg-gradient-to-b to-black from-white bottom-12"
-                  style={{
-                    width: `${viewerWidth}px`,
-                  }}
-                ></div>
-              </>
-            ) : (
+            <div
+              id="controls"
+              className="z-40 flex  justify-between ml-20 overflow-clip   border max-w-[840px] rounded-xl"
+              style={{
+                height: `${viewerHeight}px`,
+                width: `${viewerWidth}px`,
+              }}
+            >
               <div
-                id="controls"
-                className="z-40 flex  justify-between ml-20    border max-w-[840px] rounded-xl"
+                onClick={() => bookRender.prev()}
+                className="w-[20px] h-auto px-2 text-xs font-semibold bg-gradient-to-r from-black to-white text-gray-900 shadow-sm grow-0 "
+              ></div>
+              <div
+                id="viewer"
+                className="items-center bg-green-600 grow"
                 style={{
                   height: `${viewerHeight}px`,
                   width: `${viewerWidth}px`,
                 }}
-              >
-                <div
-                  onClick={() => bookRender.prev()}
-                  className="w-[20px] h-auto px-2 text-xs font-semibold bg-gradient-to-r from-black to-white text-gray-900 shadow-sm grow-0 "
-                ></div>
-                <div
-                  id="viewer"
-                  className="items-center bg-white grow"
-                  style={{
-                    height: `${viewerHeight}px`,
-                    width: `${viewerWidth}px`,
-                  }}
-                ></div>
-                <div
-                  onClick={() => bookRender.next()}
-                  className="px-2 py-1 w-[20px] z-50 text-xs font-semibold text-gray-900 bg-gradient-to-l from-black to-white shadow-sm grow-0 "
-                ></div>
-              </div>
-            )}
+              ></div>
+              <div
+                onClick={() => bookRender.next()}
+                className="px-2 py-1 w-[20px] z-50 text-xs font-semibold text-gray-900 bg-gradient-to-l from-black to-white shadow-sm grow-0 "
+              ></div>
+            </div>
           </div>
         </div>
       )}
