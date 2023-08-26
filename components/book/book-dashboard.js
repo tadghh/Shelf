@@ -11,6 +11,7 @@ export default function BookDashboard() {
   const [directoryStatus, setDirectoryStatus] = useState(false);
   const [directoryChecked, setDirectoryChecked] = useState(false);
   const [imagesStatus, setImagesStatus] = useState();
+
   const updateTitleAndImageData = (titles, images) => {
     setTitleData(titles);
     setImageData(images);
@@ -19,7 +20,6 @@ export default function BookDashboard() {
   useEffect(() => {
     async function loadImages() {
       const start = performance.now();
-      console.log("yo");
       const bookCovers = await invoke("initialize_books");
       const bookCoverPaths = await Promise.all(
         bookCovers.map(async (book) => {
@@ -28,8 +28,8 @@ export default function BookDashboard() {
       );
 
       updateTitleAndImageData(bookCovers, bookCoverPaths);
-      const end = performance.now();
-      const executionTime = end - start;
+
+      const executionTime = performance.now() - start;
 
       console.log(`Execution time: ${executionTime} milliseconds`);
       setImagesStatus(true);
@@ -39,18 +39,18 @@ export default function BookDashboard() {
       option_name: "book_folder_location",
     }).then((data) => {
       if (isValidDirectoryPath(data)) {
-        console.log("good");
         setDirectoryStatus(data);
         loadImages();
-      } else {
-        console.log(data);
       }
       setDirectoryChecked(true);
     });
+
   }, []);
+
   if (!directoryChecked) {
     return <></>;
   }
+
   return directoryStatus ? (
     <>
       {imagesStatus ? (
@@ -69,6 +69,6 @@ export default function BookDashboard() {
       )}
     </>
   ) : (
-    <NoDirectory/>
+    <NoDirectory />
   );
 }
