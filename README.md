@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/logo.png" width="140px"/>
+<img src="resources/logo.png" width="140px"/>
 
 # Shelf
 
@@ -34,10 +34,11 @@ The goal behind this application was to see what I can accomplish and learn with
 
 ## Preview
 
+
 <div align="center">
 
-<img src="docs/preview1.png" />
+<img src="resources/preview1.png" />
 
-<img src="docs/preview2.png" />
+<img src="resources/preview2.png" />
 
 </div>
