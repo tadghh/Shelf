@@ -12,7 +12,7 @@ export default function Book() {
   const [bookData, setBookData] = useState("");
   const [bookOpen, setBookOpen] = useState(false);
   const [bookRender, setBookRender] = useState();
-  const [scrollStyle, setScrollStyle] = useState("false");
+  const [scrollStyle, setScrollStyle] = useState(false);
 
   const [bookLoaded, setBookLoaded] = useState(false);
 
@@ -20,10 +20,21 @@ export default function Book() {
   const bookSize = () => {
     return window.innerWidth - 160 > 800 ? 800 : window.innerWidth - 180;
   };
-
+  console.log("Width" + (window.innerWidth - 20)  );
+  console.log("Widtdh" + bookSize(0) );
   const [viewerHeight, setViewerHeight] = useState(window.innerHeight - 40);
-  const [viewerWidth, setViewerWidth] = useState(bookSize + 20);
+  const [viewerWidth, setViewerWidth] = useState(bookSize(0));
+  useEffect(() => {
+    invoke("get_configuration_option", {
+      option_name: "endless_scroll",
+    }).then((data) => {
+      if (data) {
 
+
+        setScrollStyle(data === "true");
+      }
+    });
+  });
   useEffect(() => {
     const handleResize = () => {
       //less than the max and greater than the min
@@ -50,17 +61,8 @@ export default function Book() {
         });
 
         if (bookData.length !== 0 && !bookLoaded.isOpen) {
-          let endlessScrollValue;
 
-          invoke("get_configuration_option", {
-            option_name: "endless_scroll",
-          }).then((data) => {
-            if (data) {
-              endlessScrollValue = data;
 
-              setScrollStyle(endlessScrollValue === "true");
-            }
-          });
 
           bookRef.current = bookLoaded;
 
@@ -75,10 +77,10 @@ export default function Book() {
                 document.getElementById("viewer"),
                 {
                   manager:
-                    endlessScrollValue === "true" ? "continuous" : "default",
-                  flow: endlessScrollValue === "true" ? "scrolled" : null,
+                  scrollStyle  ? "continuous" : "default",
+                  flow: scrollStyle ? "scrolled" : null,
                   width: bookWidth,
-                  height: "100%",
+                  height: window.innerHeight - 40,
                   spread: "none",
                 }
               );
@@ -116,24 +118,23 @@ export default function Book() {
       {bookLoaded && (
         <div
           className="flex flex-col items-center max-h-screen justify-items-center "
-          //   style={{
-          //     backgroundImage: `url('data:image/jpeg;base64,${backgroundData}')`,
-          //   }}
+
         >
-          <div className="flex flex-col items-center my-5 backdrop-filter backdrop-blur justify-items-center ">
+          <div className="flex flex-col items-center my-5 ml-20 backdrop-filter backdrop-blur justify-items-center " style={{
+                  height: `${viewerHeight}px`,
+                  width: `${viewerWidth}px`,
+                }}>
             {scrollStyle ? (
               <div
                 id="viewer"
-                className="bg-white overflow-hidden ml-20  my-10 rounded w-[850px] h-auto "
-              ></div>
+                className="bg-white rounded-xl overflow-clip  max-w-[800px]  "
+
+              />
             ) : (
               <div
                 id="controls"
-                className="z-40 flex justify-between  ml-20 border rounded-xl max-w-[840px]  overflow-hidden"
-                style={{
-                  height: `${viewerHeight}px`,
-                  width: `${viewerWidth}px`,
-                }}
+                className="z-40 flex justify-between border rounded-xl max-w-[840px]  overflow-hidden"
+
               >
                 <div
                   onClick={() => bookRender.prev()}
@@ -141,12 +142,9 @@ export default function Book() {
                 ></div>
                 <div
                   id="viewer"
-                  className="items-center bg-white grow"
-                  style={{
-                    height: `${viewerHeight}px`,
-                    width: `${viewerWidth}px`,
-                  }}
-                ></div>
+                  className="bg-white "
+
+                />
                 <div
                   onClick={() => bookRender.next()}
                   className="px-2 py-1 w-[20px] z-50 text-xs font-semibold text-gray-900 bg-gradient-to-l from-black to-white shadow-sm grow-0 "
