@@ -2,18 +2,19 @@
 import { invoke } from "@tauri-apps/api/tauri";
 import { appWindow } from "@tauri-apps/api/window";
 import { useRouter } from "next/router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import ePub from "epubjs";
+import PageButton from "@/components/book/page-button";
 
 export default function Book() {
   const router = useRouter();
-  const bookRef = useRef();
+  const bookRenderRef = useRef(); // Create a ref for bookRender
+  const bookLoadRef = useRef(); // Create a ref for bookRender
+  const isLoadBookCalledRef = useRef(false);
 
   const { book } = router.query;
 
-  const [bookData, setBookData] = useState();
   const [bookOpen, setBookOpen] = useState(false);
-  const [bookLoaded, setBookLoaded] = useState(false);
   const [bookRender, setBookRender] = useState();
 
   const [scrollStyle, setScrollStyle] = useState(false);
@@ -25,23 +26,48 @@ export default function Book() {
 
   const [viewerHeight, setViewerHeight] = useState(window.innerHeight - 40);
   const [viewerWidth, setViewerWidth] = useState(bookSize());
+  const handlePrevPage = useCallback(() => {
+    if (bookRenderRef.current) {
+      bookRenderRef.current.prev();
+    }
+  }, []);
 
+  const handleNextPage = useCallback(() => {
+    if (bookRenderRef.current) {
+      console.log(bookRenderRef.current.next());
+      bookRenderRef.current.next();
+    }
+  }, []);
   useEffect(() => {
-    invoke("get_configuration_option", {
+    async function usersBookSettings() {
+      await invoke("get_configuration_option", {
+        option_name: "endless_scroll",
+      }).then((data) => {
+        if (data) {
+          setScrollStyle(data === "true");
+        }
+      });
+    }
+    usersBookSettings();
+  }, []);
+
+  const getBookSettings = async () => {
+    let scrollValue = false;
+    await invoke("get_configuration_option", {
       option_name: "endless_scroll",
     }).then((data) => {
       if (data) {
-        setScrollStyle(data === "true");
+        scrollValue = data === "true";
       }
     });
-  });
-
+    return scrollValue;
+  };
   useEffect(() => {
     const handleResize = () => {
       setViewerHeight(window.innerHeight - 40);
       setViewerWidth(window.innerWidth - 140);
-      if (bookRender) {
-        bookRender.resize(bookSize(), window.innerHeight - 40);
+      if (bookRenderRef.current) {
+        bookRenderRef.current.resize(bookSize(), window.innerHeight - 40);
       }
     };
 
@@ -50,55 +76,56 @@ export default function Book() {
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [bookRender]);
+  }, []);
 
   useEffect(() => {
-    async function loadBook() {
-      setBookData(await invoke("load_book", { title: book }));
+    if (book && !isLoadBookCalledRef.current) {
+      isLoadBookCalledRef.current = true;
 
-      const bookLoaded = ePub({
-        encoding: "base64",
-      });
-
-      if (bookData && !bookLoaded.isOpen) {
-        bookRef.current = bookLoaded;
-
-        bookLoaded.open(bookData);
-
-        try {
-          bookLoaded.ready.then(() => {
-            let bookWidth = bookSize() + "";
-            let settings = {
-              width: bookWidth,
-              height: window.innerHeight - 40,
-              spread: "none",
-            };
-
-            scrollStyle
-              ? () => {
-                  settings.manager = "continuous";
-                  settings.flow = "scrolled";
-                }
-              : (settings.manager = "default");
-
-            const rendition = bookLoaded.renderTo(
-              document.getElementById("viewer"),
-              settings
-            );
-            setBookRender(rendition);
-            rendition.display();
+      invoke("load_book", { title: book }).then(async (bookData) => {
+        if (bookData) {
+          bookLoadRef.current = ePub({
+            encoding: "base64",
           });
-        } catch {
-          //handle this
+
+          if (!bookLoadRef.current.isOpen) {
+            bookLoadRef.current.open(bookData);
+
+            try {
+              await bookLoadRef.current.ready;
+
+              let bookWidth = bookSize();
+              const scrollValue = await getBookSettings();
+
+              let settings = {
+                width: bookWidth,
+                height: window.innerHeight - 40,
+                spread: "none",
+              };
+
+              if (scrollValue) {
+                settings.manager = "continuous";
+                settings.flow = "scrolled";
+              } else {
+                settings.manager = "default";
+              }
+
+              const rendition = bookLoadRef.current.renderTo(
+                document.getElementById("viewer"),
+                settings
+              );
+
+              bookRenderRef.current = rendition;
+
+              rendition.display();
+            } catch {
+              //handle this
+            }
+          }
         }
-        setBookLoaded(true);
-        setBookOpen(true);
-      }
+      });
     }
-    if (book !== undefined && !bookOpen) {
-      loadBook();
-    }
-  }, [book, bookRef, bookData, bookOpen]);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -112,7 +139,7 @@ export default function Book() {
 
   return (
     <>
-      {bookLoaded && (
+      {true && (
         <div className="flex flex-col items-center max-h-screen justify-items-center">
           <div
             className="flex flex-col items-center my-5 ml-20 backdrop-filter backdrop-blur justify-items-center "
@@ -131,15 +158,9 @@ export default function Book() {
                 id="controls"
                 className="z-40 flex justify-between border rounded-xl max-w-[840px]  overflow-hidden"
               >
-                <div
-                  onClick={() => bookRender.prev()}
-                  className="w-[20px] h-auto px-2 text-xs font-semibold bg-gradient-to-r from-black to-white text-gray-900 shadow-sm grow-0 "
-                ></div>
+                <PageButton action={handlePrevPage} left />
                 <div id="viewer" className="bg-white " />
-                <div
-                  onClick={() => bookRender.next()}
-                  className="px-2 py-1 w-[20px] z-50 text-xs font-semibold text-gray-900 bg-gradient-to-l from-black to-white shadow-sm grow-0 "
-                ></div>
+                <PageButton action={handleNextPage} />
               </div>
             )}
           </div>
