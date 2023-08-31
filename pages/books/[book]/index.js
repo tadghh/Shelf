@@ -8,14 +8,12 @@ import PageButton from "@/components/book/page-button";
 
 export default function Book() {
   const router = useRouter();
-  const bookRenderRef = useRef(); // Create a ref for bookRender
-  const bookLoadRef = useRef(); // Create a ref for bookRender
+
+  const bookRenderRef = useRef();
+  const bookLoadRef = useRef();
   const isLoadBookCalledRef = useRef(false);
 
   const { book } = router.query;
-
-  const [bookOpen, setBookOpen] = useState(false);
-  const [bookRender, setBookRender] = useState();
 
   const [scrollStyle, setScrollStyle] = useState(false);
 
@@ -84,6 +82,7 @@ export default function Book() {
 
       invoke("load_book", { title: book }).then(async (bookData) => {
         if (bookData) {
+          //Fix this next no more being based
           bookLoadRef.current = ePub({
             encoding: "base64",
           });
