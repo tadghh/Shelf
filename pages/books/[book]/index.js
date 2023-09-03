@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
 import { appWindow } from "@tauri-apps/api/window";
 import { useRouter } from "next/router";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -80,15 +80,13 @@ export default function Book() {
     if (book && !isLoadBookCalledRef.current) {
       isLoadBookCalledRef.current = true;
 
-      invoke("load_book", { title: book }).then(async (bookData) => {
-        if (bookData) {
+      invoke("load_book", { title: book }).then(async (bookPath) => {
+        if (bookPath) {
           //Fix this next no more being based
-          bookLoadRef.current = ePub({
-            encoding: "base64",
-          });
+          bookLoadRef.current = ePub();
 
           if (!bookLoadRef.current.isOpen) {
-            bookLoadRef.current.open(bookData);
+            bookLoadRef.current.open(convertFileSrc(bookPath));
 
             try {
               await bookLoadRef.current.ready;

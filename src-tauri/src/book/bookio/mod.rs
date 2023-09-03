@@ -156,7 +156,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         if current_length != &epubs.len() {
             let book_json_len = Arc::new(AtomicUsize::new(book_json.len()));
             let book_json_test = Arc::new(Mutex::new(book_json));
-
+            println!("Diff size");
             epubs.par_iter().for_each(|item| {
                 let item_normalized = item.replace('\\', "/");
                 let title = EpubDoc::new(&item_normalized).unwrap().mdata("title").unwrap();
