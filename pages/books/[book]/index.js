@@ -82,7 +82,6 @@ export default function Book() {
 
       invoke("load_book", { title: book }).then(async (bookPath) => {
         if (bookPath) {
-          //Fix this next no more being based
           bookLoadRef.current = ePub();
 
           if (!bookLoadRef.current.isOpen) {
