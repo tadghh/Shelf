@@ -43,8 +43,7 @@ pub struct Book {
     title: String,
 }
 
-/// Loads a books data and returns a base64 encoding of it
-/// This is done to get around CORS issues, here is where we take advantage of binary search
+/// Looks for the books url inside the json file, returning its path
 ///
 /// # Arguments
 ///
