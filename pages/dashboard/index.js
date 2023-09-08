@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import BookCover from "@/components/book/book-cover";
 import { isValidDirectoryPath } from "@/lib/regex";
 import NoDirectory from "@/components/shelf/no-directory";
+import { useRouter } from "next/router";
 
 export default function BookDashboard() {
   const [imageData, setImageData] = useState([]);
@@ -11,7 +12,8 @@ export default function BookDashboard() {
   const [directoryStatus, setDirectoryStatus] = useState(false);
   const [directoryChecked, setDirectoryChecked] = useState(false);
   const [imagesStatus, setImagesStatus] = useState();
-
+  const router = useRouter();
+  console.log(router.asPath);
   const updateTitleAndImageData = (titles, images) => {
     setTitleData(titles);
     setImageData(images);

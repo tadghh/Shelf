@@ -1,8 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function BookCover({ title, coverPath }) {
-  const bookLink = `./dashboard/${title}`;
+  const router = useRouter();
+  const bookLink = `${router.asPath}/${title}`;
   return (
     <Link
       href={bookLink}
