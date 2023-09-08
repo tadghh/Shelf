@@ -50,7 +50,18 @@ export default function Book() {
     usersBookSettings();
   }, []);
 
-  const getBookSettings = async () => {
+  const getBookScrollSetting = async () => {
+    let scrollValue = false;
+    await invoke("get_configuration_option", {
+      option_name: "endless_scroll",
+    }).then((data) => {
+      if (data) {
+        scrollValue = data === "true";
+      }
+    });
+    return scrollValue;
+  };
+  const getBookBackgroundSetting = async () => {
     let scrollValue = false;
     await invoke("get_configuration_option", {
       option_name: "endless_scroll",
@@ -95,7 +106,7 @@ export default function Book() {
               await bookLoadRef.current.ready;
 
               let bookWidth = bookSize();
-              const scrollValue = await getBookSettings();
+              const scrollValue = await getBookScrollSetting();
 
               let settings = {
                 width: bookWidth,
