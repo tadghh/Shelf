@@ -10,6 +10,7 @@ export default function Book() {
   const router = useRouter();
 
   const bookRenderRef = useRef();
+  const bookBackgroundRef = useRef();
   const bookLoadRef = useRef();
   const isLoadBookCalledRef = useRef(false);
 
@@ -80,13 +81,15 @@ export default function Book() {
     if (book && !isLoadBookCalledRef.current) {
       isLoadBookCalledRef.current = true;
 
-      invoke("load_book", { title: book }).then(async (bookPath) => {
-        if (bookPath) {
-          console.log(bookPath);
+      invoke("load_book", { title: book }).then(async (bookInfo) => {
+        if (bookInfo) {
           bookLoadRef.current = ePub();
 
           if (!bookLoadRef.current.isOpen) {
-            bookLoadRef.current.open(convertFileSrc(bookPath.book_location));
+            bookLoadRef.current.open(convertFileSrc(bookInfo.book_location));
+            bookBackgroundRef.current.style.backgroundImage = `url(${convertFileSrc(
+              bookInfo.cover_location
+            )})`;
 
             try {
               await bookLoadRef.current.ready;
@@ -137,29 +140,34 @@ export default function Book() {
   return (
     <>
       {true && (
-        <div className="flex flex-col items-center max-h-screen justify-items-center">
-          <div
-            className="flex flex-col items-center my-5 ml-20 backdrop-filter backdrop-blur justify-items-center "
-            style={{
-              height: `${viewerHeight}px`,
-              width: `${viewerWidth}px`,
-            }}
-          >
-            {scrollStyle ? (
-              <div
-                id="viewer"
-                className="bg-white rounded-xl overflow-clip  max-w-[800px]  "
-              />
-            ) : (
-              <div
-                id="controls"
-                className="z-40 flex justify-between border rounded-xl max-w-[840px]  overflow-hidden"
-              >
-                <PageButton action={handlePrevPage} left />
-                <div id="viewer" className="bg-white " />
-                <PageButton action={handleNextPage} />
-              </div>
-            )}
+        <div
+          className="max-h-screen bg-gray-500 bg-center bg-cover "
+          ref={bookBackgroundRef}
+        >
+          <div className="flex flex-col items-center w-full h-full backdrop-blur-sm backdrop-brightness-50">
+            <div
+              className="z-50 flex flex-col items-center my-5 ml-20 opacity-100 justify-items-center "
+              style={{
+                height: `${viewerHeight}px`,
+                width: `${viewerWidth}px`,
+              }}
+            >
+              {scrollStyle ? (
+                <div
+                  id="viewer"
+                  className="bg-white rounded-xl overflow-clip  max-w-[800px]  "
+                />
+              ) : (
+                <div
+                  id="controls"
+                  className="z-40 flex justify-between border rounded-xl max-w-[840px]  overflow-hidden"
+                >
+                  <PageButton action={handlePrevPage} left />
+                  <div id="viewer" className="bg-white " />
+                  <PageButton action={handleNextPage} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
