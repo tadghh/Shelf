@@ -4,7 +4,9 @@ import { appWindow } from "@tauri-apps/api/window";
 import { useRouter } from "next/router";
 import { useState, useEffect, useRef, useCallback } from "react";
 import ePub from "epubjs";
+
 import PageButton from "@/components/book/page-button";
+import { SettingsItems } from "@/lib/SettingsItemEnum";
 
 export default function Book() {
   const router = useRouter();
@@ -12,6 +14,11 @@ export default function Book() {
   const bookRenderRef = useRef();
   const bookBackgroundRef = useRef();
   const bookLoadRef = useRef();
+  const coverBackgroundState = useRef();
+  const scrollStyleState = useRef();
+
+  const settingsEnums = useRef();
+
   const isLoadBookCalledRef = useRef(false);
 
   const { book } = router.query;
@@ -37,41 +44,33 @@ export default function Book() {
       bookRenderRef.current.next();
     }
   }, []);
-  useEffect(() => {
-    async function usersBookSettings() {
-      await invoke("get_configuration_option", {
-        option_name: "endless_scroll",
-      }).then((data) => {
-        if (data) {
-          setScrollStyle(data === "true");
-        }
-      });
-    }
-    usersBookSettings();
-  }, []);
 
-  const getBookScrollSetting = async () => {
-    let scrollValue = false;
+  //Maybe we put this into its own file
+  async function loadEnum() {
+    settingsEnums.current = await SettingsItems();
+  }
+
+  async function usersBookSettings() {
+    await loadEnum();
+
     await invoke("get_configuration_option", {
-      option_name: "endless_scroll",
+      option_name: settingsEnums.current.ENDLESS_SCROLL,
     }).then((data) => {
       if (data) {
-        scrollValue = data === "true";
+        setScrollStyle(data === "true");
+        scrollStyleState.current = data === "true";
       }
     });
-    return scrollValue;
-  };
-  const getBookBackgroundSetting = async () => {
-    let scrollValue = false;
+
     await invoke("get_configuration_option", {
-      option_name: "endless_scroll",
+      option_name: settingsEnums.current.COVER_BACKGROUND,
     }).then((data) => {
       if (data) {
-        scrollValue = data === "true";
+        coverBackgroundState.current = data === "true";
       }
     });
-    return scrollValue;
-  };
+  }
+
   useEffect(() => {
     const handleResize = () => {
       setViewerHeight(window.innerHeight - 40);
@@ -89,53 +88,63 @@ export default function Book() {
   }, []);
 
   useEffect(() => {
-    if (book && !isLoadBookCalledRef.current) {
-      isLoadBookCalledRef.current = true;
+    async function loadBook() {
+      await usersBookSettings();
 
-      invoke("load_book", { title: book }).then(async (bookInfo) => {
-        if (bookInfo) {
-          bookLoadRef.current = ePub();
+      if (book && !isLoadBookCalledRef.current) {
+        isLoadBookCalledRef.current = true;
 
-          if (!bookLoadRef.current.isOpen) {
-            bookLoadRef.current.open(convertFileSrc(bookInfo.book_location));
-            bookBackgroundRef.current.style.backgroundImage = `url(${convertFileSrc(
-              bookInfo.cover_location
-            )})`;
+        invoke("load_book", { title: book }).then(async (bookInfo) => {
+          if (bookInfo) {
+            bookLoadRef.current = ePub();
 
-            try {
-              await bookLoadRef.current.ready;
+            if (!bookLoadRef.current.isOpen) {
+              bookLoadRef.current.open(convertFileSrc(bookInfo.book_location));
 
-              let bookWidth = bookSize();
-              const scrollValue = await getBookScrollSetting();
-
-              let settings = {
-                width: bookWidth,
-                height: window.innerHeight - 40,
-                spread: "none",
-              };
-
-              if (scrollValue) {
-                settings.manager = "continuous";
-                settings.flow = "scrolled";
-              } else {
-                settings.manager = "default";
+              if (
+                bookBackgroundRef.current &&
+                coverBackgroundState.current === true
+              ) {
+                bookBackgroundRef.current.style.backgroundImage = `url(${convertFileSrc(
+                  bookInfo.cover_location
+                )})`;
               }
+              try {
+                await bookLoadRef.current.ready;
 
-              const rendition = bookLoadRef.current.renderTo(
-                document.getElementById("viewer"),
-                settings
-              );
+                let bookWidth = bookSize();
+                const scrollValue = scrollStyleState.current;
 
-              bookRenderRef.current = rendition;
+                let settings = {
+                  width: bookWidth,
+                  height: window.innerHeight - 40,
+                  spread: "none",
+                };
 
-              rendition.display();
-            } catch {
-              //handle this
+                if (scrollValue) {
+                  settings.manager = "continuous";
+                  settings.flow = "scrolled";
+                } else {
+                  settings.manager = "default";
+                }
+
+                const rendition = bookLoadRef.current.renderTo(
+                  document.getElementById("viewer"),
+                  settings
+                );
+
+                bookRenderRef.current = rendition;
+
+                rendition.display();
+              } catch {
+                //handle this
+              }
             }
           }
-        }
-      });
+        });
+      }
     }
+    loadBook();
   }, []);
 
   useEffect(() => {
@@ -147,7 +156,6 @@ export default function Book() {
       appWindow.setTitle("Shelf");
     });
   }, [book, router.events]);
-
   return (
     <>
       {true && (
