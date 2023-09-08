@@ -4,32 +4,18 @@ import { useEffect, useState } from "react";
 import BookCover from "@/components/book/book-cover";
 import { isValidDirectoryPath } from "@/lib/regex";
 import NoDirectory from "@/components/shelf/no-directory";
-import { useRouter } from "next/router";
 
 export default function BookDashboard() {
   const [imageData, setImageData] = useState([]);
-  const [titleData, setTitleData] = useState([]);
+  const [usersBooks, setUsersBooks] = useState([]);
   const [directoryStatus, setDirectoryStatus] = useState(false);
   const [directoryChecked, setDirectoryChecked] = useState(false);
   const [imagesStatus, setImagesStatus] = useState();
-  const router = useRouter();
-  console.log(router.asPath);
-  const updateTitleAndImageData = (titles, images) => {
-    setTitleData(titles);
-    setImageData(images);
-  };
 
   useEffect(() => {
     async function loadImages() {
       const start = performance.now();
-      const bookCovers = await invoke("initialize_books");
-      const bookCoverPaths = await Promise.all(
-        bookCovers.map(async (book) => {
-          return convertFileSrc(book.cover_location);
-        })
-      );
-
-      updateTitleAndImageData(bookCovers, bookCoverPaths);
+      setUsersBooks(await invoke("initialize_books"));
 
       const executionTime = performance.now() - start;
 
@@ -56,13 +42,8 @@ export default function BookDashboard() {
     <>
       {imagesStatus ? (
         <div className="ml-20 flex min-h-screen mr-4 flex-wrap animate-fade items-center justify-between gap-y-2.5  py-2">
-          {imageData.map((data, index) => (
-            <BookCover
-              className="py-4"
-              key={index}
-              coverPath={data}
-              title={titleData[index]?.title}
-            />
+          {usersBooks.map((book, index) => (
+            <BookCover className="py-4" key={index} book={book} />
           ))}
         </div>
       ) : (
