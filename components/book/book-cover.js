@@ -17,7 +17,7 @@ export default function BookCover({ book }) {
 
   return (
     <Link
-      href={`${router.asPath}/${book.title}`}
+      href={`${router.pathname}/${book.title}`}
       className="h-[500px] w-[300px]
 	  overflow-clip rounded-lg border-2 border-black bg-white px-3 pb-8 pt-5
 	  text-black transition duration-500 ease-in-out hover:border-white hover:bg-black hover:text-white"
