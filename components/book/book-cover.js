@@ -6,7 +6,6 @@ import { convertFileSrc } from "@tauri-apps/api/tauri";
 
 export default function BookCover({ book }) {
   const router = useRouter();
-  const bookLink = `${router.asPath}/${book.title}`;
   const [coverUrl, setCoverUrl] = useState();
 
   useEffect(() => {
@@ -15,15 +14,16 @@ export default function BookCover({ book }) {
     }
     loadCover();
   }, []);
+
   return (
     <Link
-      href={bookLink}
-      className=" duration-500 h-[500px]
-		 w-[300px] border-2 hover:border-white border-black rounded-lg bg-white px-3 pb-8 pt-5
-		  text-black  transition ease-in-out hover:bg-black hover:text-white  overflow-clip"
+      href={`${router.asPath}/${book.title}`}
+      className="h-[500px] w-[300px]
+	  overflow-clip rounded-lg border-2 border-black bg-white px-3 pb-8 pt-5
+	  text-black transition duration-500 ease-in-out hover:border-white hover:bg-black hover:text-white"
     >
-      <div className="flex flex-col justify-between h-full ">
-        <div className="flex justify-center overflow-hidden grow max-w-fit h-4/5 max-h-fit ">
+      <div className="flex h-full flex-col justify-between">
+        <div className="flex h-4/5 max-h-fit max-w-fit grow justify-center overflow-hidden">
           {coverUrl ? (
             <Image
               className="rounded"
@@ -39,7 +39,7 @@ export default function BookCover({ book }) {
           )}
         </div>
 
-        <div className="self-start max-w-xs pt-2 text-base font-semibold h-1/5">
+        <div className="h-1/5 max-w-xs self-start pt-2 text-base font-semibold">
           <span>{book.title}</span>
         </div>
       </div>
