@@ -14,7 +14,7 @@ export default function Settings() {
     loadEnum();
   }, []);
   return (
-    <div className="flex-col min-h-screen px-5 py-2 ml-20 transition-opacity ease-in-out duration-550 animate-fade">
+    <div className="duration-550 ml-20 min-h-screen animate-fade flex-col px-5 py-2 transition-opacity ease-in-out">
       {settingsItemsEnum ? (
         <>
           <SettingsItem
@@ -34,6 +34,13 @@ export default function Settings() {
             settingsDescription="Uses the books cover image as a background"
             settingsConfigString={settingsItemsEnum.COVER_BACKGROUND}
             settingsType={SettingsTypes.TOGGLE}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              console.log("Call tauri");
+            }}
+            value="Reset settings"
           />
         </>
       ) : (
