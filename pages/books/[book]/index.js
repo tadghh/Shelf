@@ -82,10 +82,11 @@ export default function Book() {
 
       invoke("load_book", { title: book }).then(async (bookPath) => {
         if (bookPath) {
+          console.log(bookPath);
           bookLoadRef.current = ePub();
 
           if (!bookLoadRef.current.isOpen) {
-            bookLoadRef.current.open(convertFileSrc(bookPath));
+            bookLoadRef.current.open(convertFileSrc(bookPath.book_location));
 
             try {
               await bookLoadRef.current.ready;
