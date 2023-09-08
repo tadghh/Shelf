@@ -1,9 +1,73 @@
-import BookDashboard from "@/components/book/book-dashboard";
+/* eslint-disable camelcase */
+import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
+import { useEffect, useState } from "react";
+import BookCover from "@/components/book/book-cover";
+import { isValidDirectoryPath } from "@/lib/regex";
+import NoDirectory from "@/components/shelf/no-directory";
 
-export default function Books() {
-	return (
-		<>
-			<BookDashboard />
-		</>
-	);
+export default function BookDashboard() {
+  const [imageData, setImageData] = useState([]);
+  const [titleData, setTitleData] = useState([]);
+  const [directoryStatus, setDirectoryStatus] = useState(false);
+  const [directoryChecked, setDirectoryChecked] = useState(false);
+  const [imagesStatus, setImagesStatus] = useState();
+
+  const updateTitleAndImageData = (titles, images) => {
+    setTitleData(titles);
+    setImageData(images);
+  };
+
+  useEffect(() => {
+    async function loadImages() {
+      const start = performance.now();
+      const bookCovers = await invoke("initialize_books");
+      const bookCoverPaths = await Promise.all(
+        bookCovers.map(async (book) => {
+          return convertFileSrc(book.cover_location);
+        })
+      );
+
+      updateTitleAndImageData(bookCovers, bookCoverPaths);
+
+      const executionTime = performance.now() - start;
+
+      console.log(`Execution time: ${executionTime} milliseconds`);
+      setImagesStatus(true);
+    }
+
+    invoke("get_configuration_option", {
+      option_name: "book_folder_location",
+    }).then((data) => {
+      if (isValidDirectoryPath(data)) {
+        setDirectoryStatus(data);
+        loadImages();
+      }
+      setDirectoryChecked(true);
+    });
+  }, []);
+
+  if (!directoryChecked) {
+    return <></>;
+  }
+
+  return directoryStatus ? (
+    <>
+      {imagesStatus ? (
+        <div className="ml-20 flex min-h-screen mr-4 flex-wrap animate-fade items-center justify-between gap-y-2.5  py-2">
+          {imageData.map((data, index) => (
+            <BookCover
+              className="py-4"
+              key={index}
+              coverPath={data}
+              title={titleData[index]?.title}
+            />
+          ))}
+        </div>
+      ) : (
+        <></>
+      )}
+    </>
+  ) : (
+    <NoDirectory />
+  );
 }
