@@ -4,13 +4,21 @@ import { appWindow } from "@tauri-apps/api/window";
 import { useRouter } from "next/router";
 import { useState, useEffect, useRef, useCallback } from "react";
 import ePub from "epubjs";
+
 import PageButton from "@/components/book/page-button";
+import { SettingsItems } from "@/lib/SettingsItemEnum";
 
 export default function Book() {
   const router = useRouter();
 
   const bookRenderRef = useRef();
+  const bookBackgroundRef = useRef();
   const bookLoadRef = useRef();
+  const coverBackgroundState = useRef();
+  const scrollStyleState = useRef();
+
+  const settingsEnums = useRef();
+
   const isLoadBookCalledRef = useRef(false);
 
   const { book } = router.query;
@@ -36,30 +44,33 @@ export default function Book() {
       bookRenderRef.current.next();
     }
   }, []);
-  useEffect(() => {
-    async function usersBookSettings() {
-      await invoke("get_configuration_option", {
-        option_name: "endless_scroll",
-      }).then((data) => {
-        if (data) {
-          setScrollStyle(data === "true");
-        }
-      });
-    }
-    usersBookSettings();
-  }, []);
 
-  const getBookSettings = async () => {
-    let scrollValue = false;
+  //Maybe we put this into its own file
+  async function loadEnum() {
+    settingsEnums.current = await SettingsItems();
+  }
+
+  async function usersBookSettings() {
+    await loadEnum();
+
     await invoke("get_configuration_option", {
-      option_name: "endless_scroll",
+      option_name: settingsEnums.current.ENDLESS_SCROLL,
     }).then((data) => {
       if (data) {
-        scrollValue = data === "true";
+        setScrollStyle(data === "true");
+        scrollStyleState.current = data === "true";
       }
     });
-    return scrollValue;
-  };
+
+    await invoke("get_configuration_option", {
+      option_name: settingsEnums.current.COVER_BACKGROUND,
+    }).then((data) => {
+      if (data) {
+        coverBackgroundState.current = data === "true";
+      }
+    });
+  }
+
   useEffect(() => {
     const handleResize = () => {
       setViewerHeight(window.innerHeight - 40);
@@ -77,50 +88,63 @@ export default function Book() {
   }, []);
 
   useEffect(() => {
-    if (book && !isLoadBookCalledRef.current) {
-      isLoadBookCalledRef.current = true;
+    async function loadBook() {
+      await usersBookSettings();
 
-      invoke("load_book", { title: book }).then(async (bookPath) => {
-        if (bookPath) {
-          bookLoadRef.current = ePub();
+      if (book && !isLoadBookCalledRef.current) {
+        isLoadBookCalledRef.current = true;
 
-          if (!bookLoadRef.current.isOpen) {
-            bookLoadRef.current.open(convertFileSrc(bookPath));
+        invoke("load_book", { title: book }).then(async (bookInfo) => {
+          if (bookInfo) {
+            bookLoadRef.current = ePub();
 
-            try {
-              await bookLoadRef.current.ready;
+            if (!bookLoadRef.current.isOpen) {
+              bookLoadRef.current.open(convertFileSrc(bookInfo.book_location));
 
-              let bookWidth = bookSize();
-              const scrollValue = await getBookSettings();
-
-              let settings = {
-                width: bookWidth,
-                height: window.innerHeight - 40,
-                spread: "none",
-              };
-
-              if (scrollValue) {
-                settings.manager = "continuous";
-                settings.flow = "scrolled";
-              } else {
-                settings.manager = "default";
+              if (
+                bookBackgroundRef.current &&
+                coverBackgroundState.current === true
+              ) {
+                bookBackgroundRef.current.style.backgroundImage = `url(${convertFileSrc(
+                  bookInfo.cover_location
+                )})`;
               }
+              try {
+                await bookLoadRef.current.ready;
 
-              const rendition = bookLoadRef.current.renderTo(
-                document.getElementById("viewer"),
-                settings
-              );
+                let bookWidth = bookSize();
+                const scrollValue = scrollStyleState.current;
 
-              bookRenderRef.current = rendition;
+                let settings = {
+                  width: bookWidth,
+                  height: window.innerHeight - 40,
+                  spread: "none",
+                };
 
-              rendition.display();
-            } catch {
-              //handle this
+                if (scrollValue) {
+                  settings.manager = "continuous";
+                  settings.flow = "scrolled";
+                } else {
+                  settings.manager = "default";
+                }
+
+                const rendition = bookLoadRef.current.renderTo(
+                  document.getElementById("viewer"),
+                  settings
+                );
+
+                bookRenderRef.current = rendition;
+
+                rendition.display();
+              } catch {
+                //handle this
+              }
             }
           }
-        }
-      });
+        });
+      }
     }
+    loadBook();
   }, []);
 
   useEffect(() => {
@@ -132,33 +156,37 @@ export default function Book() {
       appWindow.setTitle("Shelf");
     });
   }, [book, router.events]);
-
   return (
     <>
       {true && (
-        <div className="flex flex-col items-center max-h-screen justify-items-center">
-          <div
-            className="flex flex-col items-center my-5 ml-20 backdrop-filter backdrop-blur justify-items-center "
-            style={{
-              height: `${viewerHeight}px`,
-              width: `${viewerWidth}px`,
-            }}
-          >
-            {scrollStyle ? (
-              <div
-                id="viewer"
-                className="bg-white rounded-xl overflow-clip  max-w-[800px]  "
-              />
-            ) : (
-              <div
-                id="controls"
-                className="z-40 flex justify-between border rounded-xl max-w-[840px]  overflow-hidden"
-              >
-                <PageButton action={handlePrevPage} left />
-                <div id="viewer" className="bg-white " />
-                <PageButton action={handleNextPage} />
-              </div>
-            )}
+        <div
+          className="max-h-screen bg-gray-500 bg-center bg-cover "
+          ref={bookBackgroundRef}
+        >
+          <div className="flex flex-col items-center w-full h-full backdrop-blur-sm backdrop-brightness-50">
+            <div
+              className="z-50 flex flex-col items-center my-5 ml-20 opacity-100 justify-items-center "
+              style={{
+                height: `${viewerHeight}px`,
+                width: `${viewerWidth}px`,
+              }}
+            >
+              {scrollStyle ? (
+                <div
+                  id="viewer"
+                  className="bg-white rounded-xl overflow-clip  max-w-[800px]  "
+                />
+              ) : (
+                <div
+                  id="controls"
+                  className="z-40 flex justify-between border rounded-xl max-w-[840px]  overflow-hidden"
+                >
+                  <PageButton action={handlePrevPage} left />
+                  <div id="viewer" className="bg-white " />
+                  <PageButton action={handleNextPage} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

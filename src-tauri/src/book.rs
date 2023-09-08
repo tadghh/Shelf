@@ -36,7 +36,7 @@ static mut BOOK_JSON: BookCache = BookCache {
 };
 
 /// Used for handling books on the front end
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Book {
     cover_location: String,
     book_location: String,
@@ -50,7 +50,7 @@ pub struct Book {
 /// * `title` - The title of the book to load
 ///
 #[tauri::command]
-pub fn load_book(title: String) -> Result<String, String> {
+pub fn load_book(title: String) -> Option<Book> {
     unsafe {
         let book_cache: &String = &BOOK_JSON.json_path;
 
@@ -66,16 +66,16 @@ pub fn load_book(title: String) -> Result<String, String> {
             let book_index = chunk_binary_search_index_load(books, &title);
             if let Some(book) = books.get(book_index.unwrap()) {
                 // Accessing the book at the specified index
-                return Ok(book.book_location.to_string());
+                return Some(book.clone());
             } else {
                 println!("Invalid index");
             }
         } else {
-            return Err("JSON File missing".to_string());
+            println!("JSON File missing");
         }
     }
 
-    Err("Error occured".to_string())
+    None
 }
 
 /// The current crate used for handling Epubs has some issues with finding covers for uniquely structured books
