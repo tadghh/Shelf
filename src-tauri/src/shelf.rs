@@ -1,11 +1,11 @@
 use std::{
     collections::HashMap,
-    fs::OpenOptions,
+    fs::{OpenOptions, File, remove_file, remove_dir_all},
     io::{ BufRead, BufReader, Seek, SeekFrom, Write, Read },
     path::PathBuf,
 };
 
-use crate::book::{ bookio::create_default_settings_file, util::get_config_dir };
+use crate::book::{ bookio::create_default_settings_file, util::{get_config_dir, get_cache_dir} };
 
 static CACHE_FILE_NAME: &str = "book_cache.json";
 static SETTINGS_FILE_NAME: &str = "shelf_settings.conf";
@@ -15,6 +15,9 @@ static mut SETTINGS_MAP: Option<HashMap<String, String>> = None;
 fn get_settings_path() -> PathBuf {
     get_config_dir().join(SETTINGS_FILE_NAME)
 }
+
+
+
 
 ///Get the name of the cover image folder
 pub fn get_cover_image_folder_name() -> &'static str {
@@ -175,4 +178,28 @@ pub fn change_configuration_option(option_name: String, value: String) {
             }
         }
     }
+}
+
+
+//Delete config files and call the create file method
+pub fn reset_configuration(){
+
+    //Delete book json
+    remove_file( get_cache_dir()
+    .join(get_cache_file_name()));
+
+    //Delete settings file
+    remove_file(get_settings_path());
+
+    //call reset covers
+    reset_cover_cache();
+
+    //call default settings
+    create_default_settings_file();
+}
+
+//Delete the cover folder
+pub fn reset_cover_cache() -> Result<(), std::io::Error>{
+ //get cache directory and delete it
+ remove_dir_all(  get_cache_dir())
 }
