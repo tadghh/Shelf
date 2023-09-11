@@ -16,9 +16,6 @@ fn get_settings_path() -> PathBuf {
     get_config_dir().join(SETTINGS_FILE_NAME)
 }
 
-
-
-
 ///Get the name of the cover image folder
 pub fn get_cover_image_folder_name() -> &'static str {
     COVER_IMAGE_FOLDER_NAME
@@ -39,6 +36,7 @@ pub fn get_settings_name() -> &'static str {
 #[tauri::command]
 pub fn shelf_settings_values() -> HashMap<String, String> {
     //Lower case the strings?
+
     let shelf_option_values: HashMap<String, String> = HashMap::from([
         ("BOOK_LOCATION".to_string(), "book_folder_location".to_string()),
         ("ENDLESS_SCROLL".to_string(), "endless_scroll".to_string()),
@@ -182,24 +180,17 @@ pub fn change_configuration_option(option_name: String, value: String) {
 
 
 //Delete config files and call the create file method
-pub fn reset_configuration(){
+pub fn reset_configuration() -> Result<(),  std::io::Error>{
 
-    //Delete book json
-    remove_file( get_cache_dir()
-    .join(get_cache_file_name()));
+    //Delete book json and covers
+    remove_dir_all( get_cache_dir())?;
 
     //Delete settings file
-    remove_file(get_settings_path());
-
-    //call reset covers
-    reset_cover_cache();
+    remove_file(get_settings_path())?;
 
     //call default settings
     create_default_settings_file();
+
+    Ok(())
 }
 
-//Delete the cover folder
-pub fn reset_cover_cache() -> Result<(), std::io::Error>{
- //get cache directory and delete it
- remove_dir_all(  get_cache_dir())
-}
