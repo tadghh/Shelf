@@ -36,12 +36,16 @@ pub fn get_settings_name() -> &'static str {
 #[tauri::command]
 pub fn shelf_settings_values() -> HashMap<String, String> {
     //Lower case the strings?
-
-    let shelf_option_values: HashMap<String, String> = HashMap::from([
-        ("BOOK_LOCATION".to_string(), "book_folder_location".to_string()),
-        ("ENDLESS_SCROLL".to_string(), "endless_scroll".to_string()),
-        ("COVER_BACKGROUND".to_string(), "COVER_BACKGROUND".to_string()),
-    ]);
+    let setting_consts = ["BOOK_LOCATION","ENDLESS_SCROLL","COVER_BACKGROUND"];
+    // let shelf_option_values: HashMap<String, String> = HashMap::from([
+    //     ("BOOK_LOCATION".to_string(), "book_folder_location".to_string()),
+    //     ("ENDLESS_SCROLL".to_string(), "endless_scroll".to_string()),
+    //     ("COVER_BACKGROUND".to_string(), "COVER_BACKGROUND".to_string()),
+    // ]);
+    let shelf_option_values: HashMap<String, String> = setting_consts
+    .iter()
+    .map(|entry| (entry.to_string(), entry.to_lowercase()))
+    .collect();
 
     shelf_option_values
 }
