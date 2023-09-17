@@ -190,13 +190,11 @@ pub fn change_configuration_option(option_name: String, value: String) {
 pub fn reset_configuration() -> Result<(),  String>{
 
     //Delete book json and covers
-    print!("The dir {:?}",get_cache_dir());
-    print!("The dir {:?}",get_settings_path());
     if let Err(err) = remove_dir_all(get_cache_dir()) {
         return Err(err.to_string());
     }
 
-    // Delete settings file
+    //Delete settings file
     if let Err(err) = remove_file(get_settings_path()) {
         return Err(err.to_string());
     }
