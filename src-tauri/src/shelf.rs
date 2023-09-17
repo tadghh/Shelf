@@ -50,14 +50,9 @@ pub fn shelf_settings_values() -> HashMap<String, String> {
     shelf_option_values
 }
 
-///Just to messing around, looking for more performant solutions
-fn load_settings_into_memory() {
-    unsafe {
-        if SETTINGS_MAP.is_none() {
-            //let home_dir = get_home_dir();
-            // let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
-            let settings_path = get_settings_path();
-            // Check if the file already exists
+fn load_settings(){
+    let settings_path = get_settings_path();
+
             let file = match
                 OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
             {
@@ -84,11 +79,18 @@ fn load_settings_into_memory() {
                 }
             }
 
-            SETTINGS_MAP = Some(settings_map);
+            unsafe { SETTINGS_MAP = Some(settings_map) };
+}
+
+///Just to messing around, looking for more performant solutions
+fn load_settings_into_memory(  ) {
+    unsafe {
+        if SETTINGS_MAP.is_none() {
+
+            load_settings()
         }
     }
 }
-
 /// Returns the setting for the provided value
 ///
 /// # Arguments
@@ -200,7 +202,7 @@ pub fn reset_configuration() -> Result<(),  String>{
     }
     //call default settings
     create_default_settings_file();
-    load_settings_into_memory();
+    load_settings();
 
     Ok(())
 }
@@ -212,7 +214,7 @@ pub fn create_default_settings() -> Result<(),  String>{
     }
     //call default settings
     create_default_settings_file();
-    load_settings_into_memory();
+    load_settings();
 
     Ok(())
 }
