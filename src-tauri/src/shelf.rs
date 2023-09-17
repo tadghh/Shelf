@@ -184,14 +184,18 @@ pub fn change_configuration_option(option_name: String, value: String) {
 
 
 //Delete config files and call the create file method
-pub fn reset_configuration() -> Result<(),  std::io::Error>{
+#[tauri::command(rename_all = "snake_case")]
+pub fn reset_configuration() -> Result<(),  String>{
 
     //Delete book json and covers
-    remove_dir_all( get_cache_dir())?;
+    if let Err(err) = remove_dir_all(get_cache_dir()) {
+        return Err(err.to_string());
+    }
 
-    //Delete settings file
-    remove_file(get_settings_path())?;
-
+    // Delete settings file
+    if let Err(err) = remove_file(get_settings_path()) {
+        return Err(err.to_string());
+    }
     //call default settings
     create_default_settings_file();
 
