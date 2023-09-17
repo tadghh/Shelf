@@ -23,7 +23,7 @@ export default function BookDashboard() {
     }
 
     invoke("get_configuration_option", {
-      option_name: "book_folder_location",
+      option_name: "book_location",
     }).then((data) => {
       if (isValidDirectoryPath(data)) {
         setDirectoryStatus(data);

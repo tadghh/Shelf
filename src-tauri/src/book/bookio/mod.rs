@@ -43,13 +43,13 @@ pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &PathBuf) -> Res
 /// Creates the default settings file if none exists
 pub fn create_default_settings_file() {
     let settings_path = get_config_dir().join(get_settings_name());
-
+    print!("{:?}", get_config_dir().join(get_settings_name()));
     // Check if the file already exists
     if fs::metadata(&settings_path).is_err() {
         // File doesn't exist, create a new one with default values
         let default_settings =
             r#"
-            book_folder_location=None
+            book_location=None
             endless_scroll=false
         "#;
 
@@ -115,7 +115,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         .to_string()
         .clone();
     println!("Its here {}", json_path);
-    let dir = match get_configuration_option("book_folder_location".to_string()) {
+    let dir = match get_configuration_option("book_location".to_string()) {
         Some(val) => val,
         None => {
             return None;
