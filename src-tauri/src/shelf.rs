@@ -206,16 +206,5 @@ pub fn reset_configuration() -> Result<(),  String>{
 
     Ok(())
 }
-#[tauri::command(rename_all = "snake_case")]
-pub fn create_default_settings() -> Result<(),  String>{
 
-    if let Err(err) = remove_file(get_settings_path()) {
-        return Err(err.to_string());
-    }
-    //call default settings
-    create_default_settings_file();
-    load_settings();
-
-    Ok(())
-}
 

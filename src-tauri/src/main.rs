@@ -14,7 +14,7 @@ use app::{
         change_configuration_option,
         get_configuration_option,
         shelf_settings_values,
-        reset_configuration, __cmd__reset_configuration,create_default_settings, __cmd__create_default_settings
+        reset_configuration, __cmd__reset_configuration
     },
 };
 
@@ -29,8 +29,8 @@ fn main() {
                 change_configuration_option,
                 get_configuration_option,
                 shelf_settings_values,
-                reset_configuration,
-                create_default_settings
+                reset_configuration
+
             ]
         )
         .run(tauri::generate_context!())
