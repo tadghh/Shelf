@@ -1,11 +1,11 @@
 use std::{
     collections::HashMap,
-    fs::OpenOptions,
+    fs::{OpenOptions, File, remove_file, remove_dir_all},
     io::{ BufRead, BufReader, Seek, SeekFrom, Write, Read },
     path::PathBuf,
 };
 
-use crate::book::{ bookio::create_default_settings_file, util::get_config_dir };
+use crate::book::{ bookio::create_default_settings_file, util::{get_config_dir, get_cache_dir} };
 
 static CACHE_FILE_NAME: &str = "book_cache.json";
 static SETTINGS_FILE_NAME: &str = "shelf_settings.conf";
@@ -36,23 +36,23 @@ pub fn get_settings_name() -> &'static str {
 #[tauri::command]
 pub fn shelf_settings_values() -> HashMap<String, String> {
     //Lower case the strings?
-    let shelf_option_values: HashMap<String, String> = HashMap::from([
-        ("BOOK_LOCATION".to_string(), "book_folder_location".to_string()),
-        ("ENDLESS_SCROLL".to_string(), "endless_scroll".to_string()),
-        ("COVER_BACKGROUND".to_string(), "COVER_BACKGROUND".to_string()),
-    ]);
+    let setting_consts = ["BOOK_LOCATION","ENDLESS_SCROLL","COVER_BACKGROUND"];
+    // let shelf_option_values: HashMap<String, String> = HashMap::from([
+    //     ("BOOK_LOCATION".to_string(), "book_folder_location".to_string()),
+    //     ("ENDLESS_SCROLL".to_string(), "endless_scroll".to_string()),
+    //     ("COVER_BACKGROUND".to_string(), "COVER_BACKGROUND".to_string()),
+    // ]);
+    let shelf_option_values: HashMap<String, String> = setting_consts
+    .iter()
+    .map(|entry| (entry.to_string(), entry.to_lowercase()))
+    .collect();
 
     shelf_option_values
 }
 
-///Just to messing around, looking for more performant solutions
-fn load_settings_into_memory() {
-    unsafe {
-        if SETTINGS_MAP.is_none() {
-            //let home_dir = get_home_dir();
-            // let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
-            let settings_path = get_settings_path();
-            // Check if the file already exists
+fn load_settings(){
+    let settings_path = get_settings_path();
+
             let file = match
                 OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
             {
@@ -79,11 +79,18 @@ fn load_settings_into_memory() {
                 }
             }
 
-            SETTINGS_MAP = Some(settings_map);
+            unsafe { SETTINGS_MAP = Some(settings_map) };
+}
+
+///Just to messing around, looking for more performant solutions
+fn load_settings_into_memory(  ) {
+    unsafe {
+        if SETTINGS_MAP.is_none() {
+
+            load_settings()
         }
     }
 }
-
 /// Returns the setting for the provided value
 ///
 /// # Arguments
@@ -176,3 +183,26 @@ pub fn change_configuration_option(option_name: String, value: String) {
         }
     }
 }
+
+
+//Delete config files and call the create file method
+#[tauri::command(rename_all = "snake_case")]
+pub fn reset_configuration() -> Result<(),  String>{
+
+    //Delete book json and covers
+    if let Err(err) = remove_dir_all(get_cache_dir()) {
+        return Err(err.to_string());
+    }
+
+    //Delete settings file
+    if let Err(err) = remove_file(get_settings_path()) {
+        return Err(err.to_string());
+    }
+    //call default settings
+    create_default_settings_file();
+    load_settings();
+
+    Ok(())
+}
+
+

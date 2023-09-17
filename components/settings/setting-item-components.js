@@ -3,7 +3,7 @@ import ToggleButton from "../Inputs/toggle-button";
 const FileSettingComponent = ({ setter, status = "" }) => {
   return (
     <div
-      className="whitespace-pre border-2 border-indigo-600 location-input px-5 py-2.5 rounded-md "
+      className="location-input whitespace-pre rounded-md border-2 border-indigo-600 px-5 py-2.5 "
       onClick={() => {
         open({
           directory: true,

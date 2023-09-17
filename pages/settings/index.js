@@ -4,7 +4,7 @@ import SettingsItem from "@/components/settings/settings-item";
 import { SettingsTypes } from "@/lib/SettingsTypeEnum";
 import { SettingsItems } from "@/lib/SettingsItemEnum";
 import { useEffect, useState } from "react";
-
+import { invoke } from "@tauri-apps/api";
 export default function Settings() {
   const [settingsItemsEnum, setSettingsItemsEnum] = useState(null);
   useEffect(() => {
@@ -14,7 +14,7 @@ export default function Settings() {
     loadEnum();
   }, []);
   return (
-    <div className="flex-col min-h-screen px-5 py-2 ml-20 transition-opacity ease-in-out duration-550 animate-fade">
+    <div className="duration-550 ml-20 min-h-screen animate-fade flex-col px-5 py-2 transition-opacity ease-in-out">
       {settingsItemsEnum ? (
         <>
           <SettingsItem
@@ -35,6 +35,15 @@ export default function Settings() {
             settingsConfigString={settingsItemsEnum.COVER_BACKGROUND}
             settingsType={SettingsTypes.TOGGLE}
           />
+          <div className="ml-auto mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
+            <button
+              className=" rounded-lg bg-red-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-800 focus:outline-none focus:ring-4 focus:ring-red-300 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
+              type="button"
+              onClick={() => invoke("reset_configuration")}
+            >
+              Reset settings
+            </button>
+          </div>
         </>
       ) : (
         <></>

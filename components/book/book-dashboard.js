@@ -24,7 +24,7 @@ export default function BookDashboard() {
       const bookCoverPaths = await Promise.all(
         bookCovers.map(async (book) => {
           return convertFileSrc(book.cover_location);
-        })
+        }),
       );
 
       updateTitleAndImageData(bookCovers, bookCoverPaths);
@@ -36,7 +36,7 @@ export default function BookDashboard() {
     }
 
     invoke("get_configuration_option", {
-      option_name: "book_folder_location",
+      option_name: "book_location",
     }).then((data) => {
       if (isValidDirectoryPath(data)) {
         setDirectoryStatus(data);
@@ -44,7 +44,6 @@ export default function BookDashboard() {
       }
       setDirectoryChecked(true);
     });
-
   }, []);
 
   if (!directoryChecked) {
@@ -54,7 +53,7 @@ export default function BookDashboard() {
   return directoryStatus ? (
     <>
       {imagesStatus ? (
-        <div className="ml-20 flex min-h-screen mr-4 flex-wrap animate-fade items-center justify-between gap-y-2.5  py-2">
+        <div className="ml-20 mr-4 flex min-h-screen animate-fade flex-wrap items-center justify-between gap-y-2.5  py-2">
           {imageData.map((data, index) => (
             <BookCover
               className="py-4"
