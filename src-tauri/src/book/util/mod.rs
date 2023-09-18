@@ -32,17 +32,16 @@ pub fn sanitize_windows_filename(filename: String) -> String {
 pub fn get_config_dir() -> PathBuf {
     let mut full_config_path = config_dir().expect("Failed to get config directory");
     full_config_path.push("shelf\\config"); // Use forward slashes
-    println!("Path: {:?}", full_config_path.to_str().unwrap());
 
     if let Err(err) = fs::create_dir_all(&full_config_path) {
         eprintln!("Error creating cache directory: {:?}", err);
     }
+
     full_config_path
 }
 pub fn get_cache_dir() -> PathBuf {
     let mut cache_dir = cache_dir().expect("Failed to get cache directory");
     cache_dir.push("shelf\\covers"); // Use forward slashes
-    println!("Path: {:?}", cache_dir.to_str().unwrap());
 
     if let Err(err) = fs::create_dir_all(&cache_dir) {
         eprintln!("Error creating cache directory: {:?}", err);
