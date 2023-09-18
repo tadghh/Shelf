@@ -9,10 +9,7 @@ export default function BookCover({ book }) {
   const [coverUrl, setCoverUrl] = useState();
 
   useEffect(() => {
-    async function loadCover() {
-      setCoverUrl(convertFileSrc(book.cover_location));
-    }
-    loadCover();
+    setCoverUrl(convertFileSrc(book.cover_location));
   }, []);
 
   return (
@@ -23,8 +20,8 @@ export default function BookCover({ book }) {
 	  text-black transition duration-500 ease-in-out hover:border-white hover:bg-black hover:text-white"
     >
       <div className="flex h-full flex-col justify-between">
-        <div className="flex h-4/5 max-h-fit max-w-fit grow justify-center overflow-hidden">
-          {coverUrl ? (
+        {coverUrl ? (
+          <div className="flex h-4/5 max-h-fit max-w-fit grow justify-center overflow-hidden">
             <Image
               className="rounded"
               alt={book.title}
@@ -33,11 +30,14 @@ export default function BookCover({ book }) {
               object-fit="cover"
               height={500}
               src={coverUrl}
+              onError={(e) => {
+                e.target.src = "error.jpg";
+              }}
             />
-          ) : (
-            <></>
-          )}
-        </div>
+          </div>
+        ) : (
+          <></>
+        )}
 
         <div className="h-1/5 max-w-xs self-start pt-2 text-base font-semibold">
           <span>{book.title}</span>
