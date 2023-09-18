@@ -32,7 +32,7 @@ pub fn get_settings_name() -> &'static str {
 }
 
 ///This is how we get out settings back over to nextjs.
-///TODO: Use enums throughout backend, lazy guy :| 
+///TODO: Use enums throughout backend, lazy guy :|
 #[tauri::command]
 pub fn shelf_settings_values() -> HashMap<String, String> {
     let setting_consts = ["BOOK_LOCATION","ENDLESS_SCROLL","COVER_BACKGROUND"];
@@ -49,74 +49,47 @@ pub fn shelf_settings_values() -> HashMap<String, String> {
 fn load_settings(){
     let settings_path = get_settings_path();
 
-            let file = match
-                OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
-            {
-                Ok(file) => file,
-                Err(e) => {
-                    eprintln!("Error opening settings file, trying to create one: {}", e);
-                    restore_default_settings();
-                    OpenOptions::new()
-                        .read(true)
-                        .write(true)
-                        .open(&settings_path)
-                        .expect("Failed to open settings file")
-                }
-            };
+    let file = match
+        OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
+    {
+        Ok(file) => file,
+        Err(e) => {
+            eprintln!("Error opening settings file, trying to create one: {}", e);
+            restore_default_settings();
+            OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&settings_path)
+                .expect("Failed to open settings file")
+        }
+    };
 
-            let reader = BufReader::new(&file);
+    let reader = BufReader::new(&file);
 
-            let mut settings_map = HashMap::new();
-            for line in reader.lines() {
-                let line_content = line.unwrap();
-                let split: Vec<&str> = line_content.split('=').collect();
-                if split.len() == 2 {
-                    settings_map.insert(split[0].to_string(), split[1].to_string());
-                }
-            }
+    let mut settings_map = HashMap::new();
 
-            unsafe { SETTINGS_MAP = Some(settings_map) };
+    for line in reader.lines() {
+        let line_content = line.unwrap();
+        let split: Vec<&str> = line_content.split('=').collect();
+
+        if split.len() == 2 {
+            settings_map.insert(split[0].to_string(), split[1].to_string());
+        }
+    }
+
+    unsafe { SETTINGS_MAP = Some(settings_map) };
 }
 
-///Load user settings into memory
+///Load user settings into memory, if they havent already been
 fn load_settings_into_memory() {
     unsafe {
         if SETTINGS_MAP.is_none() {
-            //let home_dir = get_home_dir();
-            // let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
-            let settings_path = get_settings_path();
-            // Check if the file already exists
-            let file = match
-                OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
-            {
-                Ok(file) => file,
-                Err(e) => {
-                    eprintln!("Error opening settings file, trying to create one: {}", e);
-                    restore_default_settings();
-                    OpenOptions::new()
-                        .read(true)
-                        .write(true)
-                        .open(&settings_path)
-                        .expect("Failed to open settings file")
-                }
-            };
-            let reader = BufReader::new(&file);
-            let mut settings_map = HashMap::new();
-            for line in reader.lines() {
-                let line_content = line.unwrap();
-                let split: Vec<&str> = line_content.split('=').collect();
-                if split.len() == 2 {
-                    settings_map.insert(split[0].to_string(), split[1].to_string());
-                }
-            }
-
-            SETTINGS_MAP = Some(settings_map);
+            load_settings();
         }
     }
 }
 
 /// Sets all settings consts to be "unset" or default
-///
 pub fn restore_default_settings() {
     load_settings_into_memory();
 
@@ -137,9 +110,9 @@ pub fn get_configuration_option(option_name: String) -> Option<String> {
     load_settings_into_memory();
 
     //TODO: Could encounter error if memory issue
-    let value = unsafe { SETTINGS_MAP.as_ref().and_then(|map| map.get(&option_name).cloned()) };
+    let settings_value = unsafe { SETTINGS_MAP.as_ref().and_then(|map| map.get(&option_name).cloned()) };
 
-    value
+    settings_value
 }
 
 /// Changes the value of a settings item
@@ -148,7 +121,6 @@ pub fn get_configuration_option(option_name: String) -> Option<String> {
 ///
 /// * `option_name` - The setting to change
 /// * `value` - The new value to set
-///
 ///
 #[tauri::command(rename_all = "snake_case")]
 pub fn change_configuration_option(option_name: String, value: String) {
@@ -167,6 +139,7 @@ pub fn change_configuration_option(option_name: String, value: String) {
 
             let mut contents = String::new();
             file.read_to_string(&mut contents).unwrap();
+
             if let Some(index) = contents.find(&format!("{}=", option_name)) {
                 let start = index + option_name.len() + 1;
 
@@ -207,6 +180,7 @@ pub fn change_configuration_option(option_name: String, value: String) {
 #[tauri::command(rename_all = "snake_case")]
 pub fn reset_configuration() -> Result<(),  String>{
 
+    //TODO: Handle these errors on front end, let user know it didnt work
     //Delete book json and covers
     if let Err(err) = remove_dir_all(get_cache_dir()) {
         return Err(err.to_string());
@@ -216,6 +190,7 @@ pub fn reset_configuration() -> Result<(),  String>{
     if let Err(err) = remove_file(get_settings_path()) {
         return Err(err.to_string());
     }
+
     //call default settings
     restore_default_settings();
     load_settings();
