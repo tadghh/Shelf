@@ -10,10 +10,9 @@ use std::{
 use rayon::prelude::{ IntoParallelRefIterator, ParallelIterator };
 use crate::{
     book::{ util::{ chunk_binary_search_index, get_cache_dir }, BOOK_JSON, Book, create_cover },
-    shelf::{ get_cache_file_name, get_configuration_option, get_settings_name },
+    shelf::{ get_cache_file_name, get_configuration_option },
 };
 
-use super::util::get_config_dir;
 
 /// Writes the cover image to the specified path
 ///
@@ -90,8 +89,8 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         .to_string_lossy()
         .to_string()
         .clone();
-    println!("Its here {}", json_path);
-    let dir = match get_configuration_option("book_location".to_string()) {
+
+        let dir = match get_configuration_option("book_location".to_string()) {
         Some(val) => val,
         None => {
             return None;
@@ -132,12 +131,14 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         if current_length != &epubs.len() {
             let book_json_len = Arc::new(AtomicUsize::new(book_json.len()));
             let book_json_test = Arc::new(Mutex::new(book_json));
-            println!("Diff size");
+
             epubs.par_iter().for_each(|item| {
                 let item_normalized = item.replace('\\', "/");
                 let title = EpubDoc::new(&item_normalized).unwrap().mdata("title").unwrap();
                 let mut book_json_guard = book_json_test.lock().unwrap();
                 let index = chunk_binary_search_index(&book_json_guard, &title);
+
+                //TODO: Duplicated code?
                 match index {
                     Some(index) => {
                         let new_book = Book {
@@ -166,9 +167,9 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         }
     } else {
         book_json = create_book_vec(&epubs, covers_directory);
-        println!("{} length", book_json.len());
         file_changes = true;
     }
+
     if file_changes {
         let file = File::create(json_path).expect("JSON path should be defined, and a valid path");
 

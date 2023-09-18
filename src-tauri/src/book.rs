@@ -4,7 +4,7 @@ use epub::doc::EpubDoc;
 use regex::Regex;
 use xmltree::Element;
 
-use crate::book::util::{ chunk_binary_search_index_load, base64_encode_file, check_epub_resource };
+use crate::book::util::{ chunk_binary_search_index_load, check_epub_resource };
 use crate::xml::extract_image_source;
 
 use self::bookio::write_cover_image;
@@ -64,6 +64,7 @@ pub fn load_book(title: String) -> Option<Book> {
 
             let books = &BOOK_JSON.books;
             let book_index = chunk_binary_search_index_load(books, &title);
+
             if let Some(book) = books.get(book_index.unwrap()) {
                 // Accessing the book at the specified index
                 return Some(book.clone());
