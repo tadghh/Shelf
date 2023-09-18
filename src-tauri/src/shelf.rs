@@ -1,11 +1,11 @@
 use std::{
     collections::HashMap,
-    fs::{OpenOptions, File, remove_file, remove_dir_all},
+    fs::{OpenOptions, remove_file, remove_dir_all},
     io::{ BufRead, BufReader, Seek, SeekFrom, Write, Read },
     path::PathBuf,
 };
 
-use crate::book::{ bookio::create_default_settings_file, util::{get_config_dir, get_cache_dir} };
+use crate::book::util::{get_config_dir, get_cache_dir};
 
 static CACHE_FILE_NAME: &str = "book_cache.json";
 static SETTINGS_FILE_NAME: &str = "shelf_settings.conf";
@@ -31,17 +31,12 @@ pub fn get_settings_name() -> &'static str {
     SETTINGS_FILE_NAME
 }
 
-///I have enums I want to use in the front end so this is how we get the
-///Hardcoding bad ya ya ya...
+///This is how we get out settings back over to nextjs.
+///TODO: Use enums throughout backend, lazy guy :| 
 #[tauri::command]
 pub fn shelf_settings_values() -> HashMap<String, String> {
-    //Lower case the strings?
     let setting_consts = ["BOOK_LOCATION","ENDLESS_SCROLL","COVER_BACKGROUND"];
-    // let shelf_option_values: HashMap<String, String> = HashMap::from([
-    //     ("BOOK_LOCATION".to_string(), "book_folder_location".to_string()),
-    //     ("ENDLESS_SCROLL".to_string(), "endless_scroll".to_string()),
-    //     ("COVER_BACKGROUND".to_string(), "COVER_BACKGROUND".to_string()),
-    // ]);
+
     let shelf_option_values: HashMap<String, String> = setting_consts
     .iter()
     .map(|entry| (entry.to_string(), entry.to_lowercase()))
@@ -50,6 +45,7 @@ pub fn shelf_settings_values() -> HashMap<String, String> {
     shelf_option_values
 }
 
+/// To force overwrite users settings in memory
 fn load_settings(){
     let settings_path = get_settings_path();
 
@@ -59,7 +55,7 @@ fn load_settings(){
                 Ok(file) => file,
                 Err(e) => {
                     eprintln!("Error opening settings file, trying to create one: {}", e);
-                    create_default_settings_file();
+                    restore_default_settings();
                     OpenOptions::new()
                         .read(true)
                         .write(true)
@@ -82,15 +78,54 @@ fn load_settings(){
             unsafe { SETTINGS_MAP = Some(settings_map) };
 }
 
-///Just to messing around, looking for more performant solutions
-fn load_settings_into_memory(  ) {
+///Load user settings into memory
+fn load_settings_into_memory() {
     unsafe {
         if SETTINGS_MAP.is_none() {
+            //let home_dir = get_home_dir();
+            // let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
+            let settings_path = get_settings_path();
+            // Check if the file already exists
+            let file = match
+                OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
+            {
+                Ok(file) => file,
+                Err(e) => {
+                    eprintln!("Error opening settings file, trying to create one: {}", e);
+                    restore_default_settings();
+                    OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .open(&settings_path)
+                        .expect("Failed to open settings file")
+                }
+            };
+            let reader = BufReader::new(&file);
+            let mut settings_map = HashMap::new();
+            for line in reader.lines() {
+                let line_content = line.unwrap();
+                let split: Vec<&str> = line_content.split('=').collect();
+                if split.len() == 2 {
+                    settings_map.insert(split[0].to_string(), split[1].to_string());
+                }
+            }
 
-            load_settings()
+            SETTINGS_MAP = Some(settings_map);
         }
     }
 }
+
+/// Sets all settings consts to be "unset" or default
+///
+pub fn restore_default_settings() {
+    load_settings_into_memory();
+
+    //TODO: Unset is not a "good" default value
+    for entry in shelf_settings_values().iter() {
+        change_configuration_option(entry.1.to_owned(), "Unset".to_string());
+    }
+}
+
 /// Returns the setting for the provided value
 ///
 /// # Arguments
@@ -100,26 +135,9 @@ fn load_settings_into_memory(  ) {
 #[tauri::command(rename_all = "snake_case")]
 pub fn get_configuration_option(option_name: String) -> Option<String> {
     load_settings_into_memory();
+
+    //TODO: Could encounter error if memory issue
     let value = unsafe { SETTINGS_MAP.as_ref().and_then(|map| map.get(&option_name).cloned()) };
-
-    if value.is_none() {
-        // Option not found, call change_configuration_option and check if it was successful
-        change_configuration_option(option_name.clone(), "Unset".to_string());
-
-        // Recheck the value after attempting to change the option
-        unsafe {
-            if
-                let Some(updated_value) = SETTINGS_MAP.as_ref().and_then(|map|
-                    map.get(&option_name).cloned()
-                )
-            {
-                return Some(updated_value);
-            } else {
-                eprintln!("Failed to set option: {}", option_name);
-                return None;
-            }
-        }
-    }
 
     value
 }
@@ -138,7 +156,7 @@ pub fn change_configuration_option(option_name: String, value: String) {
     unsafe {
         if let Some(map) = &mut SETTINGS_MAP {
             map.insert(option_name.clone(), value.clone());
-            // let settings_path = format!("{}/{}", home_dir, &SETTINGS_FILE_NAME);
+
             let settings_path = get_settings_path();
             let mut file = OpenOptions::new()
                 .create(true)
@@ -199,7 +217,7 @@ pub fn reset_configuration() -> Result<(),  String>{
         return Err(err.to_string());
     }
     //call default settings
-    create_default_settings_file();
+    restore_default_settings();
     load_settings();
 
     Ok(())

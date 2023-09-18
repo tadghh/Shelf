@@ -40,31 +40,7 @@ pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &PathBuf) -> Res
     Ok(())
 }
 
-/// Creates the default settings file if none exists
-pub fn create_default_settings_file() {
-    let settings_path = get_config_dir().join(get_settings_name());
-    print!("{:?}", get_config_dir().join(get_settings_name()));
-    // Check if the file already exists
-    if fs::metadata(&settings_path).is_err() {
-        // File doesn't exist, create a new one with default values
-        let default_settings =
-            r#"
-            book_location=None
-            endless_scroll=false
-        "#;
 
-        let mut file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&settings_path)
-            .expect("Failed to create settings file");
-
-        file.write_all(default_settings.as_bytes()).expect(
-            "Failed to write default settings to file"
-        );
-    }
-}
 
 /// Creates a vector containing all the books and returns a a vector of book objects, here we also create the covers
 /// The returned json is sorted alphabetically so we can use binary sort when there are a large number of books
