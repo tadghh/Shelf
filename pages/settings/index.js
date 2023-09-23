@@ -1,22 +1,23 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable camelcase */
+import { invoke } from "@tauri-apps/api";
+
 import SettingsItem from "@/components/settings/settings-item";
 import { SettingsTypes } from "@/lib/SettingsTypeEnum";
-import { SettingsItems } from "@/lib/SettingsItemEnum";
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api";
+
 export default function Settings() {
-  const [settingsItemsEnum, setSettingsItemsEnum] = useState(null);
+  const [settingsItemsEnum, setSettingsItemsEnum] = useState([]);
+
   useEffect(() => {
-    async function loadEnum() {
-      console.log(await SettingsItems());
-      setSettingsItemsEnum(await SettingsItems());
-    }
-    loadEnum();
+    // invoke("get_configuration_option", {
+    //   option_name: "book_location",
+    // }).then((data) => {
+    //   setSettingsItemsEnum(data);
+    // });
   }, []);
+  return <></>;
   return (
     <div className="duration-550 ml-20 min-h-screen animate-fade flex-col px-5 py-2 transition-opacity ease-in-out">
-      {settingsItemsEnum ? (
+      {/* {settingsItemsEnum.length != 0 ? (
         <>
           <SettingsItem
             settingsTitle="Book directory"
@@ -36,13 +37,11 @@ export default function Settings() {
             settingsConfigString={settingsItemsEnum.COVER_BACKGROUND}
             settingsType={SettingsTypes.TOGGLE}
           />
-          <div className="ml-auto mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
+          <div className="flex items-center justify-center h-16 p-4 mt-2 ml-auto bg-white border w-44 rounded-xl">
             <button
               className=" rounded-lg bg-red-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-800 focus:outline-none focus:ring-4 focus:ring-red-300 dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-900"
               type="button"
-              onClick={() => {
-                invoke("reset_configuration");
-              }}
+              onClick={resetSettings}
             >
               Reset settings
             </button>
@@ -50,7 +49,7 @@ export default function Settings() {
         </>
       ) : (
         <></>
-      )}
+      )} */}
     </div>
   );
 }

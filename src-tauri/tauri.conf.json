@@ -23,7 +23,8 @@
       "window": {
         "setTitle": true,
         "setMinSize": true,
-        "setSize": true
+        "setSize": true,
+        "all": true
       }
     },
     "bundle": {
@@ -57,14 +58,13 @@
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
         "timestampUrl": ""
+
       }
     },
     "security": {
       "csp": null
     },
-    "updater": {
-      "active": false
-    },
+
     "windows": [
       {
         "fullscreen": false,
