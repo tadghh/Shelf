@@ -98,6 +98,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
     };
 
     //Load epubs from the provided directory in the frontend, currently the dashboards component
+    //This breaks if the directory doesnt exist
     let epubs: Vec<String> = fs
         ::read_dir(dir)
         .unwrap()
