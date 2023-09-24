@@ -1,6 +1,5 @@
 /* eslint-disable camelcase */
 import { invoke, convertFileSrc } from "@tauri-apps/api/tauri";
-import { appWindow } from "@tauri-apps/api/window";
 import { useRouter } from "next/router";
 import { useState, useEffect, useRef, useCallback } from "react";
 import ePub from "epubjs";
@@ -10,28 +9,9 @@ import { SettingsItems } from "@/lib/SettingsItemEnum";
 
 export default function Book() {
   const router = useRouter();
+  const [bookName, setBookName] = useState();
 
   const bookRenderRef = useRef();
-  const bookBackgroundRef = useRef();
-  const bookLoadRef = useRef();
-  const coverBackgroundState = useRef();
-  const scrollStyleState = useRef();
-
-  const settingsEnums = useRef();
-
-  const isLoadBookCalledRef = useRef(false);
-
-  const { book } = router.query;
-
-  const [scrollStyle, setScrollStyle] = useState(false);
-
-  //calculate the width of the book without margins
-  const bookSize = () => {
-    return window.innerWidth - 160 > 800 ? 800 : window.innerWidth - 180;
-  };
-
-  const [viewerHeight, setViewerHeight] = useState(window.innerHeight - 40);
-  const [viewerWidth, setViewerWidth] = useState(bookSize());
   const handlePrevPage = useCallback(() => {
     if (bookRenderRef.current) {
       bookRenderRef.current.prev();
@@ -44,6 +24,52 @@ export default function Book() {
       bookRenderRef.current.next();
     }
   }, []);
+
+  const bookBackgroundRef = useRef();
+  const bookLoadRef = useRef();
+  const coverBackgroundState = useRef();
+  const scrollStyleState = useRef();
+
+  const settingsEnums = useRef();
+
+  const isLoadBookCalledRef = useRef(false);
+
+  const { book } = router.query;
+  useEffect(() => {
+    if (router.query.book != undefined) {
+      setBookName(router.query.book);
+      console.log("yo");
+      console.log(router.query.book);
+    }
+  }, [router.query.book]);
+  const [scrollStyle, setScrollStyle] = useState(false);
+
+  //calculate the width of the book without margins
+  const bookSize = () => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth - 160 > 800 ? 800 : window.innerWidth - 180;
+    } else {
+      // Return a default value or handle the case where window is not defined.
+      return 682; // You can choose a suitable default value.
+    }
+  };
+  const getHeight = () => {
+    if (typeof window !== "undefined") {
+      if (bookRenderRef.current) {
+        bookRenderRef.current.resize(bookSize(), 1017);
+      }
+      return window.innerHeight - 40;
+    } else {
+      // Return a default value or handle the case where window is not defined.
+      return 734;
+      // if (bookRenderRef.current) {
+      //   bookRenderRef.current.resize(bookSize(), 1017);
+      // }
+    }
+  };
+
+  const [viewerHeight, setViewerHeight] = useState(getHeight());
+  const [viewerWidth, setViewerWidth] = useState(bookSize());
 
   //Maybe we put this into its own file
   async function loadEnum() {
@@ -90,9 +116,19 @@ export default function Book() {
   useEffect(() => {
     async function loadBook() {
       await usersBookSettings();
+      console.log("reload");
+      console.log("Current book" + book);
+      console.log("Current book" + bookName);
+      console.log("Current book" + router.query);
+      console.log(router.query.book);
+      console.log(await router.query);
+      console.log("Current ref" + isLoadBookCalledRef.toString());
+
+      console.log(!isLoadBookCalledRef.current);
 
       if (book && !isLoadBookCalledRef.current) {
         isLoadBookCalledRef.current = true;
+        console.log("loading of book?");
 
         invoke("load_book", { title: book }).then(async (bookInfo) => {
           if (bookInfo) {
@@ -106,7 +142,7 @@ export default function Book() {
                 coverBackgroundState.current === true
               ) {
                 bookBackgroundRef.current.style.backgroundImage = `url(${convertFileSrc(
-                  bookInfo.cover_location
+                  bookInfo.cover_location,
                 )})`;
               }
               try {
@@ -130,7 +166,7 @@ export default function Book() {
 
                 const rendition = bookLoadRef.current.renderTo(
                   document.getElementById("viewer"),
-                  settings
+                  settings,
                 );
 
                 bookRenderRef.current = rendition;
@@ -148,24 +184,24 @@ export default function Book() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      appWindow.setTitle(book);
-    }
-
-    router.events.on("routeChangeStart", () => {
-      appWindow.setTitle("Shelf");
-    });
+    //Import on run
+    // if (typeof window !== "undefined") {
+    //   appWindow.setTitle(book);
+    // }
+    // router.events.on("routeChangeStart", () => {
+    //   appWindow.setTitle("Shelf");
+    // });
   }, [book, router.events]);
   return (
     <>
       {true && (
         <div
-          className="max-h-screen bg-gray-500 bg-center bg-cover "
+          className="max-h-screen bg-gray-500 bg-cover bg-center "
           ref={bookBackgroundRef}
         >
-          <div className="flex flex-col items-center w-full h-full backdrop-blur-sm backdrop-brightness-50">
+          <div className="flex h-full w-full flex-col items-center backdrop-blur-sm backdrop-brightness-50">
             <div
-              className="z-50 flex flex-col items-center my-5 ml-20 opacity-100 justify-items-center "
+              className="z-50 my-5 ml-20 flex flex-col items-center justify-items-center opacity-100 "
               style={{
                 height: `${viewerHeight}px`,
                 width: `${viewerWidth}px`,
@@ -174,12 +210,12 @@ export default function Book() {
               {scrollStyle ? (
                 <div
                   id="viewer"
-                  className="bg-white rounded-xl overflow-clip  max-w-[800px]  "
+                  className="max-w-[800px] overflow-clip rounded-xl  bg-white  "
                 />
               ) : (
                 <div
                   id="controls"
-                  className="z-40 flex justify-between border rounded-xl max-w-[840px]  overflow-hidden"
+                  className="z-40 flex max-w-[840px] justify-between overflow-hidden rounded-xl  border"
                 >
                   <PageButton action={handlePrevPage} left />
                   <div id="viewer" className="bg-white " />
