@@ -8,8 +8,8 @@
     "withGlobalTauri": true
   },
   "package": {
-    "productName": "shelf",
-    "version": "0.1.0"
+    "productName": "Shelf",
+    "version": "0.1.1"
   },
   "tauri": {
     "allowlist": {

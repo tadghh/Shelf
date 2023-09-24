@@ -1,9 +1,10 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable camelcase */
-import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
+import { useState, useEffect } from "react";
 import { getComponentForEnum } from "@/lib/SettingsTypeReturn";
+
 export default function SettingsItem({
   settingsTitle,
   settingsConfigString,
