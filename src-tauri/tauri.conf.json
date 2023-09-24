@@ -43,17 +43,9 @@
         "icons/icon.ico"
       ],
       "identifier": "com.shelf.dev",
-      "longDescription": "",
-      "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": null
-      },
       "resources": [],
-      "shortDescription": "A application to read epubs",
-      "targets": "all",
+      "shortDescription": "Shelf",
+      "targets": "nsis",
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
@@ -64,7 +56,6 @@
     "security": {
       "csp": null
     },
-
     "windows": [
       {
         "fullscreen": false,
