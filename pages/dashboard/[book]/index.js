@@ -9,21 +9,16 @@ import { SettingsItems } from "@/lib/SettingsItemEnum";
 
 export default function Book() {
   const router = useRouter();
-  const [bookName, setBookName] = useState();
 
   const bookRenderRef = useRef();
-  const handlePrevPage = useCallback(() => {
-    if (bookRenderRef.current) {
-      bookRenderRef.current.prev();
-    }
-  }, []);
-
-  const handleNextPage = useCallback(() => {
-    if (bookRenderRef.current) {
-      console.log(bookRenderRef.current.next());
-      bookRenderRef.current.next();
-    }
-  }, []);
+  const handlePrevPage = useCallback(
+    () => bookRenderRef.current && bookRenderRef.current.prev(),
+    [],
+  );
+  const handleNextPage = useCallback(
+    () => bookRenderRef.current && bookRenderRef.current.next(),
+    [],
+  );
 
   const bookBackgroundRef = useRef();
   const bookLoadRef = useRef();
@@ -35,13 +30,7 @@ export default function Book() {
   const isLoadBookCalledRef = useRef(false);
 
   const { book } = router.query;
-  useEffect(() => {
-    if (router.query.book != undefined) {
-      setBookName(router.query.book);
-      console.log("yo");
-      console.log(router.query.book);
-    }
-  }, [router.query.book]);
+
   const [scrollStyle, setScrollStyle] = useState(false);
 
   //calculate the width of the book without margins
@@ -116,15 +105,6 @@ export default function Book() {
   useEffect(() => {
     async function loadBook() {
       await usersBookSettings();
-      console.log("reload");
-      console.log("Current book" + book);
-      console.log("Current book" + bookName);
-      console.log("Current book" + router.query);
-      console.log(router.query.book);
-      console.log(await router.query);
-      console.log("Current ref" + isLoadBookCalledRef.toString());
-
-      console.log(!isLoadBookCalledRef.current);
 
       if (book && !isLoadBookCalledRef.current) {
         isLoadBookCalledRef.current = true;
