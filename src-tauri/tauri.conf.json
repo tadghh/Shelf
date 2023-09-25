@@ -24,17 +24,12 @@
         "setTitle": true,
         "setMinSize": true,
         "setSize": true,
-        "all": true
       }
     },
     "bundle": {
       "active": true,
       "category": "Utility",
       "copyright": "",
-      "deb": {
-        "depends": []
-      },
-      "externalBin": [],
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -43,7 +38,6 @@
         "icons/icon.ico"
       ],
       "identifier": "com.shelf.dev",
-      "resources": [],
       "shortDescription": "Shelf",
       "targets": "nsis",
       "windows": {
