@@ -23,7 +23,7 @@
       "window": {
         "setTitle": true,
         "setMinSize": true,
-        "setSize": true,
+        "setSize": true
       }
     },
     "bundle": {
