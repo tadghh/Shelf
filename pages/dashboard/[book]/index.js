@@ -8,7 +8,12 @@ import PageButton from "@/components/book/page-button";
 import { SettingsItems } from "@/lib/SettingsItemEnum";
 
 export default function Book() {
+  const VERTICAL_PADDING = 40;
+  const MAX_WIDTH = 800;
   const router = useRouter();
+
+  const [viewerHeight, setViewerHeight] = useState(null);
+  const [viewerWidth, setViewerWidth] = useState(null);
 
   const bookRenderRef = useRef();
   const handlePrevPage = useCallback(
@@ -34,31 +39,25 @@ export default function Book() {
   const [scrollStyle, setScrollStyle] = useState(false);
 
   //calculate the width of the book without margins
-  const bookSize = () => {
+  const getWidth = () => {
     if (typeof window !== "undefined") {
-      return window.innerWidth - 160 > 800 ? 800 : window.innerWidth - 180;
-    } else {
-      // Return a default value or handle the case where window is not defined.
-      return 682; // You can choose a suitable default value.
+      return window.innerWidth - 160 > MAX_WIDTH
+        ? MAX_WIDTH
+        : window.innerWidth - 160;
     }
   };
   const getHeight = () => {
     if (typeof window !== "undefined") {
-      if (bookRenderRef.current) {
-        bookRenderRef.current.resize(bookSize(), 1017);
-      }
-      return window.innerHeight - 40;
-    } else {
-      // Return a default value or handle the case where window is not defined.
-      return 734;
-      // if (bookRenderRef.current) {
-      //   bookRenderRef.current.resize(bookSize(), 1017);
-      // }
+      return window.innerHeight - VERTICAL_PADDING;
     }
   };
 
-  const [viewerHeight, setViewerHeight] = useState(getHeight());
-  const [viewerWidth, setViewerWidth] = useState(bookSize());
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setViewerHeight(getHeight());
+      setViewerWidth(getWidth());
+    }
+  }, []);
 
   //Maybe we put this into its own file
   async function loadEnum() {
@@ -88,10 +87,10 @@ export default function Book() {
 
   useEffect(() => {
     const handleResize = () => {
-      setViewerHeight(window.innerHeight - 40);
-      setViewerWidth(window.innerWidth - 140);
+      setViewerHeight(getHeight());
+      setViewerWidth(getWidth());
       if (bookRenderRef.current) {
-        bookRenderRef.current.resize(bookSize(), window.innerHeight - 40);
+        bookRenderRef.current.resize(getWidth(), getHeight());
       }
     };
 
@@ -108,7 +107,6 @@ export default function Book() {
 
       if (book && !isLoadBookCalledRef.current) {
         isLoadBookCalledRef.current = true;
-        console.log("loading of book?");
 
         invoke("load_book", { title: book }).then(async (bookInfo) => {
           if (bookInfo) {
@@ -128,12 +126,12 @@ export default function Book() {
               try {
                 await bookLoadRef.current.ready;
 
-                let bookWidth = bookSize();
+                let bookWidth = getWidth();
                 const scrollValue = scrollStyleState.current;
 
                 let settings = {
                   width: bookWidth,
-                  height: window.innerHeight - 40,
+                  height: getHeight(),
                   spread: "none",
                 };
 
@@ -144,16 +142,15 @@ export default function Book() {
                   settings.manager = "default";
                 }
 
-                const rendition = bookLoadRef.current.renderTo(
+                bookRenderRef.current = bookLoadRef.current.renderTo(
                   document.getElementById("viewer"),
                   settings,
                 );
 
-                bookRenderRef.current = rendition;
-
-                rendition.display();
+                bookRenderRef.current.display();
               } catch {
                 //handle this
+                //no :P
               }
             }
           }
@@ -173,39 +170,35 @@ export default function Book() {
     // });
   }, [book, router.events]);
   return (
-    <>
-      {true && (
+    <div
+      className="max-h-screen bg-gray-500 bg-cover bg-center "
+      ref={bookBackgroundRef}
+    >
+      <div className="flex h-full w-full flex-col items-center backdrop-blur-sm backdrop-brightness-50">
         <div
-          className="max-h-screen bg-gray-500 bg-cover bg-center "
-          ref={bookBackgroundRef}
+          className="z-50 my-5 ml-20 flex flex-col items-center justify-items-center opacity-100 "
+          style={{
+            height: `${viewerHeight}px`,
+            width: `${viewerWidth}px`,
+          }}
         >
-          <div className="flex h-full w-full flex-col items-center backdrop-blur-sm backdrop-brightness-50">
+          {scrollStyle ? (
             <div
-              className="z-50 my-5 ml-20 flex flex-col items-center justify-items-center opacity-100 "
-              style={{
-                height: `${viewerHeight}px`,
-                width: `${viewerWidth}px`,
-              }}
+              id="viewer"
+              className="max-w-[800px] overflow-clip rounded-xl  bg-white  "
+            />
+          ) : (
+            <div
+              id="controls"
+              className="z-40 flex max-w-[840px] justify-between overflow-hidden rounded-xl  border"
             >
-              {scrollStyle ? (
-                <div
-                  id="viewer"
-                  className="max-w-[800px] overflow-clip rounded-xl  bg-white  "
-                />
-              ) : (
-                <div
-                  id="controls"
-                  className="z-40 flex max-w-[840px] justify-between overflow-hidden rounded-xl  border"
-                >
-                  <PageButton action={handlePrevPage} left />
-                  <div id="viewer" className="bg-white " />
-                  <PageButton action={handleNextPage} />
-                </div>
-              )}
+              <PageButton action={handlePrevPage} left />
+              <div id="viewer" className="bg-white " />
+              <PageButton action={handleNextPage} />
             </div>
-          </div>
+          )}
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
