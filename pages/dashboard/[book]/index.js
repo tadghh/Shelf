@@ -9,41 +9,43 @@ import { SettingsItems } from "@/lib/SettingsItemEnum";
 
 export default function Book() {
   const VERTICAL_PADDING = 40;
+  const WIDTH_PADDING = 160;
   const MAX_WIDTH = 800;
   const router = useRouter();
 
   const [viewerHeight, setViewerHeight] = useState(null);
   const [viewerWidth, setViewerWidth] = useState(null);
 
-  const bookRenderRef = useRef();
+  const bookRender = useRef();
   const handlePrevPage = useCallback(
-    () => bookRenderRef.current && bookRenderRef.current.prev(),
+    () => bookRender.current && bookRender.current.prev(),
     [],
   );
   const handleNextPage = useCallback(
-    () => bookRenderRef.current && bookRenderRef.current.next(),
+    () => bookRender.current && bookRender.current.next(),
     [],
   );
 
-  const bookBackgroundRef = useRef();
-  const bookLoadRef = useRef();
+  const bookEpub = useRef();
+
   const coverBackgroundState = useRef();
+  const bookBackgroundUrl = useRef();
+
   const scrollStyleState = useRef();
+  const [scrollStyle, setScrollStyle] = useState(false);
 
   const settingsEnums = useRef();
 
-  const isLoadBookCalledRef = useRef(false);
+  const isBookLoaded = useRef(false);
 
   const { book } = router.query;
-
-  const [scrollStyle, setScrollStyle] = useState(false);
 
   //calculate the width of the book without margins
   const getWidth = () => {
     if (typeof window !== "undefined") {
-      return window.innerWidth - 160 > MAX_WIDTH
+      return window.innerWidth - WIDTH_PADDING > MAX_WIDTH
         ? MAX_WIDTH
-        : window.innerWidth - 160;
+        : window.innerWidth - WIDTH_PADDING;
     }
   };
   const getHeight = () => {
@@ -51,19 +53,10 @@ export default function Book() {
       return window.innerHeight - VERTICAL_PADDING;
     }
   };
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setViewerHeight(getHeight());
-      setViewerWidth(getWidth());
-    }
-  }, []);
-
   //Maybe we put this into its own file
   async function loadEnum() {
     settingsEnums.current = await SettingsItems();
   }
-
   async function usersBookSettings() {
     await loadEnum();
 
@@ -86,45 +79,37 @@ export default function Book() {
   }
 
   useEffect(() => {
-    const handleResize = () => {
+    if (typeof window !== "undefined") {
       setViewerHeight(getHeight());
       setViewerWidth(getWidth());
-      if (bookRenderRef.current) {
-        bookRenderRef.current.resize(getWidth(), getHeight());
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    }
   }, []);
 
+  //Loads the book. Check if the router isReady... fixes refreshing refs on page refresh
   useEffect(() => {
     async function loadBook() {
       await usersBookSettings();
 
-      if (book && !isLoadBookCalledRef.current) {
-        isLoadBookCalledRef.current = true;
+      if (book && !isBookLoaded.current) {
+        isBookLoaded.current = true;
 
         invoke("load_book", { title: book }).then(async (bookInfo) => {
           if (bookInfo) {
-            bookLoadRef.current = ePub();
+            bookEpub.current = ePub();
 
-            if (!bookLoadRef.current.isOpen) {
-              bookLoadRef.current.open(convertFileSrc(bookInfo.book_location));
+            if (!bookEpub.current.isOpen) {
+              bookEpub.current.open(convertFileSrc(bookInfo.book_location));
 
               if (
-                bookBackgroundRef.current &&
+                bookBackgroundUrl.current &&
                 coverBackgroundState.current === true
               ) {
-                bookBackgroundRef.current.style.backgroundImage = `url(${convertFileSrc(
+                bookBackgroundUrl.current.style.backgroundImage = `url(${convertFileSrc(
                   bookInfo.cover_location,
                 )})`;
               }
               try {
-                await bookLoadRef.current.ready;
+                await bookEpub.current.ready;
 
                 let bookWidth = getWidth();
                 const scrollValue = scrollStyleState.current;
@@ -142,12 +127,13 @@ export default function Book() {
                   settings.manager = "default";
                 }
 
-                bookRenderRef.current = bookLoadRef.current.renderTo(
+                //duplicated?
+                bookRender.current = bookEpub.current.renderTo(
                   document.getElementById("viewer"),
                   settings,
                 );
 
-                bookRenderRef.current.display();
+                bookRender.current.display();
               } catch {
                 //handle this
                 //no :P
@@ -161,6 +147,22 @@ export default function Book() {
   }, [router.isReady]);
 
   useEffect(() => {
+    const handleResize = () => {
+      setViewerHeight(getHeight());
+      setViewerWidth(getWidth());
+      if (bookRender.current) {
+        bookRender.current.resize(getWidth(), getHeight());
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  useEffect(() => {
     //Import on run
     // if (typeof window !== "undefined") {
     //   appWindow.setTitle(book);
@@ -172,7 +174,7 @@ export default function Book() {
   return (
     <div
       className="max-h-screen bg-gray-500 bg-cover bg-center "
-      ref={bookBackgroundRef}
+      ref={bookBackgroundUrl}
     >
       <div className="flex h-full w-full flex-col items-center backdrop-blur-sm backdrop-brightness-50">
         <div
