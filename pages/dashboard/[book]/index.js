@@ -181,7 +181,7 @@ export default function Book() {
       }
     }
     loadBook();
-  }, []);
+  }, [router.isReady]);
 
   useEffect(() => {
     //Import on run
