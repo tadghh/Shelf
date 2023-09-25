@@ -172,10 +172,7 @@ export default function Book() {
     // });
   }, [book, router.events]);
   return (
-    <div
-      className="max-h-screen bg-gray-500 bg-cover bg-center "
-      ref={bookBackgroundUrl}
-    >
+    <div className="max-h-screen bg-cover bg-center " ref={bookBackgroundUrl}>
       <div className="flex h-full w-full flex-col items-center backdrop-blur-sm backdrop-brightness-50">
         <div
           className="z-50 my-5 ml-20 flex flex-col items-center justify-items-center opacity-100 "
