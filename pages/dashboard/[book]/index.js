@@ -173,9 +173,9 @@ export default function Book() {
   }, [book, router.events]);
   return (
     <div className="max-h-screen bg-cover bg-center " ref={bookBackgroundUrl}>
-      <div className="flex h-full w-full flex-col items-center backdrop-blur-sm backdrop-brightness-50">
+      <div className="flex h-full w-full animate-fade flex-col items-center backdrop-blur-sm backdrop-brightness-50 transition-opacity duration-100 ease-out ">
         <div
-          className="z-50 my-5 ml-20 flex flex-col items-center justify-items-center opacity-100 "
+          className="z-50 my-5 ml-20 flex flex-col items-center justify-items-center bg-white opacity-100 "
           style={{
             height: `${viewerHeight}px`,
             width: `${viewerWidth}px`,
@@ -184,15 +184,20 @@ export default function Book() {
           {scrollStyle ? (
             <div
               id="viewer"
-              className="max-w-[800px] overflow-clip rounded-xl  bg-white  "
+              className="max-w-[800px] overflow-clip rounded-xl  "
             />
           ) : (
             <div
               id="controls"
-              className="z-40 flex max-w-[840px] justify-between overflow-hidden rounded-xl  border"
+              className={
+                "z-40 max-w-[840px] justify-between overflow-hidden " +
+                bookRender.current
+                  ? "flex"
+                  : "hidden"
+              }
             >
               <PageButton action={handlePrevPage} left />
-              <div id="viewer" className="bg-white " />
+              <div id="viewer" />
               <PageButton action={handleNextPage} />
             </div>
           )}
