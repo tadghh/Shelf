@@ -34,17 +34,27 @@ pub fn get_settings_name() -> &'static str {
 ///This is how we get out settings back over to nextjs.
 ///TODO: Use enums throughout backend, lazy guy :|
 #[tauri::command]
-pub fn shelf_settings_values() -> HashMap<String, String> {
-    let setting_consts = ["BOOK_LOCATION","ENDLESS_SCROLL","COVER_BACKGROUND"];
-
-    let shelf_option_values: HashMap<String, String> = setting_consts
+pub fn shelf_settings_values() -> HashMap<String, (String, String)> {
+    let setting_consts: HashMap<String, &str> = [
+        ("BOOK_LOCATION".to_string(), "unset"),
+        ("ENDLESS_SCROLL".to_string(), "false"),
+        ("COVER_BACKGROUND".to_string(), "false"),
+    ]
     .iter()
-    .map(|entry| (entry.to_string(), entry.to_lowercase()))
+    .cloned()
     .collect();
 
-    shelf_option_values
+    setting_consts
+        .into_iter()
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                (k.to_lowercase(), v.to_string()),
+            )
+        })
+        .collect()
 }
-fn create_default_settings(settings_path: &Path) {
+fn create_default_settings(settings_path: &Path) -> Result<(), std::io::Error> {
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -53,24 +63,20 @@ fn create_default_settings(settings_path: &Path) {
         .expect("Failed to open or create settings file");
 
     // Generate default settings from shelf_settings_values
-    let default_settings: Vec<String> = shelf_settings_values()
-        .iter()
-        .map(|value| format!("{}={}", value.1, "unset"))
-        .collect();
+    let default_settings: HashMap<String, (String, String)> = shelf_settings_values();
 
-    for setting in &default_settings {
-        file.write_all(setting.as_bytes())
-            .expect("Failed to write default setting to file");
-        file.write_all(b"\n")
-            .expect("Failed to write newline to file");
+    for (setting_name, (lowercase_name, default_value)) in default_settings.iter() {
+        let setting_str = format!("{}={}\n", lowercase_name, default_value);
+        file.write_all(setting_str.as_bytes())?;
     }
+    Ok(())
 }
 /// To force overwrite users settings in memory
 fn load_settings(){
     let settings_path = get_settings_path();
     let bro = Path::new(&settings_path);
     if !bro.exists() {
-        create_default_settings(&settings_path);
+        let _ = create_default_settings(&settings_path);
     }
     let file = match
         OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
@@ -94,7 +100,7 @@ fn load_settings(){
     for line in reader.lines() {
         let line_content = line.unwrap();
         let split: Vec<&str> = line_content.split('=').collect();
-
+        print!("{:?}", split);
         if split.len() == 2 {
             settings_map.insert(split[0].to_string(), split[1].to_string());
         }
@@ -114,12 +120,16 @@ fn load_settings_into_memory() {
 
 /// Sets all settings consts to be "unset" or default
 pub fn restore_default_settings() {
-
+    load_settings_into_memory();
 
     //TODO: Unset is not a "good" default value
-    for entry in shelf_settings_values().iter() {
-        change_configuration_option(entry.1.to_owned(), "Unset".to_string());
+    let default_settings: HashMap<String, (String, String)> = shelf_settings_values();
+
+    for (_setting_name, (lowercase_name, default_value)) in default_settings.iter() {
+        change_configuration_option(lowercase_name.to_string(), default_value.to_string());
+
     }
+
 }
 
 /// Returns the setting for the provided value

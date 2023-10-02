@@ -21,11 +21,9 @@ export default function Settings() {
   const resetHandler = () => {
     invoke("reset_configuration")
       .then(() => {
-        // Once reset is completed, fetch and update the settings
         setRerenderKey((prevKey) => prevKey + 1);
       })
       .catch((error) => {
-        // Handle errors if needed
         console.error("Error resetting configuration:", error);
       });
   };
@@ -37,21 +35,21 @@ export default function Settings() {
             key={`item1-${rerenderKey}`}
             settingsTitle="Book directory"
             settingsDescription="The folder containing your books"
-            settingsConfigString={settingsItemsEnum.BOOK_LOCATION}
+            settingsConfigString={settingsItemsEnum.BOOK_LOCATION[0]}
             settingsType={SettingsTypes.FILE}
           />
           <SettingsItem
             key={`item2-${rerenderKey}`}
             settingsTitle="Endless scrolling"
             settingsDescription="The next page will load as you scroll"
-            settingsConfigString={settingsItemsEnum.ENDLESS_SCROLL}
+            settingsConfigString={settingsItemsEnum.ENDLESS_SCROLL[0]}
             settingsType={SettingsTypes.TOGGLE}
           />
           <SettingsItem
             key={`item3-${rerenderKey}`}
             settingsTitle="Book cover as background"
             settingsDescription="Uses the books cover image as a background"
-            settingsConfigString={settingsItemsEnum.COVER_BACKGROUND}
+            settingsConfigString={settingsItemsEnum.COVER_BACKGROUND[0]}
             settingsType={SettingsTypes.TOGGLE}
           />
           <div className="ml-auto mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
