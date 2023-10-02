@@ -9,7 +9,7 @@
   },
   "package": {
     "productName": "Shelf",
-    "version": "0.1.1"
+    "version": "0.1.2"
   },
   "tauri": {
     "allowlist": {
@@ -23,18 +23,13 @@
       "window": {
         "setTitle": true,
         "setMinSize": true,
-        "setSize": true,
-        "all": true
+        "setSize": true
       }
     },
     "bundle": {
       "active": true,
       "category": "Utility",
       "copyright": "",
-      "deb": {
-        "depends": []
-      },
-      "externalBin": [],
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -43,14 +38,23 @@
         "icons/icon.ico"
       ],
       "identifier": "com.shelf.dev",
-      "resources": [],
-      "shortDescription": "Shelf",
+      "publisher": "Tadgh Inc",
+      "shortDescription": "Shelf Reader",
       "targets": "nsis",
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-
+        "timestampUrl": "",
+        "nsis":{
+          "headerImage": "../resources/installer_header.bmp",
+          "sidebarImage": "../resources/installer_sidebar.bmp",
+          "installerIcon": "../resources/logo.ico",
+          "installMode":"both"
+        },
+        "webviewInstallMode": {
+          "silent": true,
+          "type": "embedBootstrapper"
+        }
       }
     },
     "security": {

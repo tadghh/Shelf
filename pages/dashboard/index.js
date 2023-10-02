@@ -37,7 +37,7 @@ export default function BookDashboard() {
     return <></>;
   }
 
-  return directoryStatus ? (
+  return directoryStatus && usersBooks != null ? (
     <>
       {imagesStatus ? (
         <div className="ml-20 mr-4 flex min-h-screen animate-fade flex-wrap items-center justify-between gap-y-2.5 py-2">
