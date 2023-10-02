@@ -25,6 +25,7 @@ export default function SettingsItem({
     invoke("get_configuration_option", {
       option_name: settingsConfigString,
     }).then((data) => {
+      console.log(data);
       if (data) {
         setSettingsItemStatus(data);
       }
