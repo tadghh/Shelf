@@ -1,8 +1,11 @@
 use base64::{ engine::general_purpose, Engine as _ };
 use epub::doc::EpubDoc;
 use regex::Regex;
-use tauri::api::path::{ cache_dir, config_dir };
-
+use tauri_utils::config::{Config, TauriConfig, parse};
+use tauri::{
+    self,
+    api::path::{ cache_dir, config_dir,app_cache_dir }
+};
 use super::Book;
 use std::{
     fs::{ File, self },
@@ -40,7 +43,8 @@ pub fn get_config_dir() -> PathBuf {
     full_config_path
 }
 pub fn get_cache_dir() -> PathBuf {
-    let mut cache_dir = cache_dir().expect("Failed to get cache directory");
+    //let tauri_config = parse();
+    let mut cache_dir = app_cache_dir( &tauri_utils::config::parse::parse("sd").unwrap().0).expect("Failed to get cache directory");
     cache_dir.push("shelf\\covers"); // Use forward slashes
 
     if let Err(err) = fs::create_dir_all(&cache_dir) {
