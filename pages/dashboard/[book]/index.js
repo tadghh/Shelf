@@ -63,6 +63,7 @@ export default function Book() {
     await invoke("get_configuration_option", {
       option_name: settingsEnums.current.ENDLESS_SCROLL,
     }).then((data) => {
+      console.log(data);
       if (data) {
         setScrollStyle(data === "true");
         scrollStyleState.current = data === "true";
