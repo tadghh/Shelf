@@ -9,7 +9,7 @@
   },
   "package": {
     "productName": "Shelf",
-    "version": "0.1.1"
+    "version": "0.1.2"
   },
   "tauri": {
     "allowlist": {
@@ -38,13 +38,23 @@
         "icons/icon.ico"
       ],
       "identifier": "com.shelf.dev",
-      "shortDescription": "Shelf",
+      "publisher": "Tadgh Inc",
+      "shortDescription": "Shelf Reader",
       "targets": "nsis",
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-
+        "timestampUrl": "",
+        "nsis":{
+          "headerImage": "../resources/logo_installer.bmp",
+          "sidebarImage": "../resources/logo_installer.bmp",
+          "installerIcon": "../resources/logo.ico",
+          "installMode":"both"
+        },
+        "webviewInstallMode": {
+          "silent": true,
+          "type": "embedBootstrapper"
+        }
       }
     },
     "security": {
