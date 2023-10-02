@@ -86,13 +86,16 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         .to_string()
         .clone();
 
-        let dir = match get_configuration_option("book_location".to_string()) {
-        Some(val) => val,
-        None => {
-            return None;
-        }
+    let dir = match get_configuration_option("book_location".to_string()) {
+    Some(val) => val,
+    None => {
+        return None;
+    }
     };
-
+    let bro = Path::new(&dir);
+    if !bro.exists() {
+        return None;
+    }
     //Load epubs from the provided directory in the frontend, currently the dashboards component
     //This breaks if the directory doesnt exist
     let epubs: Vec<String> = fs
