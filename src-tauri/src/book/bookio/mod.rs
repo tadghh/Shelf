@@ -26,20 +26,16 @@ pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &PathBuf) -> Res
         let mut file = match File::create(path) {
             Err(..) => {
                 return Err(path);
-                // return Err(format!("{}/{}", get_home_dir(), "error.jpg"));
             }
             Ok(file) => file,
         };
         if file.write_all(&data.0).is_err() {
-            // return Err(format!("{}/{}", get_home_dir(), "error.jpg"));
             return Err(path);
         }
     }
 
     Ok(())
 }
-
-
 
 /// Creates a vector containing all the books and returns a a vector of book objects, here we also create the covers
 /// The returned json is sorted alphabetically so we can use binary sort when there are a large number of books

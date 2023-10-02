@@ -1,8 +1,8 @@
 use std::{
     collections::HashMap,
-    fs::{OpenOptions, remove_file, remove_dir_all},
+    fs::{OpenOptions, remove_file, remove_dir_all, File},
     io::{ BufRead, BufReader, Seek, SeekFrom, Write, Read },
-    path::PathBuf,
+    path::{PathBuf, Path},
 };
 
 use crate::book::util::{get_config_dir, get_cache_dir};
@@ -44,18 +44,41 @@ pub fn shelf_settings_values() -> HashMap<String, String> {
 
     shelf_option_values
 }
+fn create_default_settings(settings_path: &Path) {
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(settings_path)
+        .expect("Failed to open or create settings file");
 
+    // Generate default settings from shelf_settings_values
+    let default_settings: Vec<String> = shelf_settings_values()
+        .iter()
+        .map(|value| format!("{}={}", value.1, "unset"))
+        .collect();
+
+    for setting in &default_settings {
+        file.write_all(setting.as_bytes())
+            .expect("Failed to write default setting to file");
+        file.write_all(b"\n")
+            .expect("Failed to write newline to file");
+    }
+}
 /// To force overwrite users settings in memory
 fn load_settings(){
     let settings_path = get_settings_path();
-
+    let bro = Path::new(&settings_path);
+    if !bro.exists() {
+        create_default_settings(&settings_path);
+    }
     let file = match
         OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
     {
         Ok(file) => file,
         Err(e) => {
             eprintln!("Error opening settings file, trying to create one: {}", e);
-            restore_default_settings();
+
             OpenOptions::new()
                 .read(true)
                 .write(true)
@@ -91,7 +114,7 @@ fn load_settings_into_memory() {
 
 /// Sets all settings consts to be "unset" or default
 pub fn restore_default_settings() {
-    load_settings_into_memory();
+
 
     //TODO: Unset is not a "good" default value
     for entry in shelf_settings_values().iter() {
