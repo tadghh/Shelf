@@ -14,19 +14,21 @@
 		"@headlessui/react": "^1.7.14",
 		"@heroicons/react": "^2.0.17",
 		"@tauri-apps/api": "^1.4.0",
-		"autoprefixer": "^10.4.14",
 		"epubjs": "^0.3.93",
 		"next": "^13.5.2",
 		"react": "^18.2.0",
-		"react-dom": "^18.2.0",
-		"tailwindcss": "^3.3.3"
+		"react-dom": "^18.2.0"
 	},
 	"devDependencies": {
 		"@tauri-apps/cli": "^1.4.0",
+		"autoprefixer": "^10.4.16",
+		"concurrently": "^8.2.1",
 		"eslint": "^8.47.0",
 		"eslint-config-next": "^13.5.2",
+		"postcss": "^8.4.31",
 		"prettier": "^3.0.3",
-		"prettier-plugin-tailwindcss": "^0.5.4"
+		"prettier-plugin-tailwindcss": "^0.5.4",
+		"tailwindcss": "^3.3.3"
 	},
 	"headwind.classRegex": {
 		"css": "\\B@apply\\s+([_a-zA-Z0-9\\s\\-\\:\\/]+);",

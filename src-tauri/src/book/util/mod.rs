@@ -1,11 +1,13 @@
 use base64::{ engine::general_purpose, Engine as _ };
 use epub::doc::EpubDoc;
 use regex::Regex;
-use tauri_utils::config::{Config, TauriConfig, parse};
 use tauri::{
     self,
-    api::path::{ cache_dir, config_dir,app_cache_dir }
+    api::path::{ app_config_dir,app_cache_dir }
 };
+use tauri::Config;
+use crate::shelf::get_cover_image_folder_name;
+
 use super::Book;
 use std::{
     fs::{ File, self },
@@ -15,6 +17,11 @@ use std::{
     path::PathBuf,
 };
 
+/// Gets the current tauri context.
+/// Im not sure how else to get the tauri config file.
+pub fn current_context() -> Config{
+    return tauri::generate_context!().config().clone();
+}
 /// Removes special charectars from a given string and returns it
 /// Some book titles contain charectars that arent compatible when used as filenames
 ///
@@ -32,21 +39,24 @@ pub fn sanitize_windows_filename(filename: String) -> String {
 
     sanitized
 }
+
 pub fn get_config_dir() -> PathBuf {
-    let mut full_config_path = config_dir().expect("Failed to get config directory");
-    full_config_path.push("shelf\\config"); // Use forward slashes
+    let mut full_config_path = app_config_dir(&current_context()).expect("Failed to get config directory");
+    full_config_path.push("config"); // Use forward slashes
+    println!("the config dir {:?}",full_config_path);
 
     if let Err(err) = fs::create_dir_all(&full_config_path) {
-        eprintln!("Error creating cache directory: {:?}", err);
+        eprintln!("Error creating config directory: {:?}", err);
     }
 
     full_config_path
 }
+
 pub fn get_cache_dir() -> PathBuf {
     //let tauri_config = parse();
-    let mut cache_dir = app_cache_dir( &tauri_utils::config::parse::parse("sd").unwrap().0).expect("Failed to get cache directory");
-    cache_dir.push("shelf\\covers"); // Use forward slashes
-
+    let mut cache_dir = app_cache_dir( &current_context()).expect("Failed to get cache directory");
+    cache_dir.push(get_cover_image_folder_name()); // Use forward slashes
+    println!("the cache dir {:?}",cache_dir);
     if let Err(err) = fs::create_dir_all(&cache_dir) {
         eprintln!("Error creating cache directory: {:?}", err);
     }

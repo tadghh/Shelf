@@ -26,11 +26,6 @@ pub fn get_cache_file_name() -> &'static str {
     CACHE_FILE_NAME
 }
 
-///Get the name of the settings file
-pub fn get_settings_name() -> &'static str {
-    SETTINGS_FILE_NAME
-}
-
 ///This is how we get out settings back over to nextjs.
 ///TODO: Use enums throughout backend, lazy guy :|
 #[tauri::command]
@@ -54,6 +49,11 @@ pub fn shelf_settings_values() -> HashMap<String, (String, String)> {
         })
         .collect()
 }
+
+/// Creates a settings file and fills it with mostly valid default values.
+///
+///  * `settings_path` - The path to the settings file
+///
 fn create_default_settings(settings_path: &Path) -> Result<(), std::io::Error> {
     let mut file = OpenOptions::new()
         .read(true)
@@ -65,7 +65,7 @@ fn create_default_settings(settings_path: &Path) -> Result<(), std::io::Error> {
     // Generate default settings from shelf_settings_values
     let default_settings: HashMap<String, (String, String)> = shelf_settings_values();
 
-    for (setting_name, (lowercase_name, default_value)) in default_settings.iter() {
+    for (_setting_name, (lowercase_name, default_value)) in default_settings.iter() {
         let setting_str = format!("{}={}\n", lowercase_name, default_value);
         file.write_all(setting_str.as_bytes())?;
     }
