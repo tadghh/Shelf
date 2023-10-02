@@ -1,14 +1,20 @@
-use std::{ fs::{ OpenOptions, File }, path::{ Path, PathBuf }, io::BufReader };
+use std::{
+    fs::{ OpenOptions, File },
+    path::{ Path, PathBuf },
+    io::BufReader
+};
+
 use serde::{ Deserialize, Serialize };
 use epub::doc::EpubDoc;
 use regex::Regex;
 use xmltree::Element;
+use serde_json::from_reader;
+use crate::book::{
+     util::{ chunk_binary_search_index_load, check_epub_resource, sanitize_windows_filename },
+     bookio::write_cover_image
+};
 
-use crate::book::util::{ chunk_binary_search_index_load, check_epub_resource };
 use crate::xml::extract_image_source;
-
-use self::bookio::write_cover_image;
-use self::util::sanitize_windows_filename;
 
 pub mod bookio;
 pub mod util;
@@ -57,7 +63,7 @@ pub fn load_book(title: String) -> Option<Book> {
         if Path::new(&book_cache).exists() {
             let file = OpenOptions::new().read(true).write(true).create(true).open(book_cache);
 
-            BOOK_JSON.update_books(match serde_json::from_reader(BufReader::new(file.unwrap())) {
+            BOOK_JSON.update_books(match from_reader(BufReader::new(file.unwrap())) {
                 Ok(data) => data,
                 Err(_) => Vec::new(),
             });
