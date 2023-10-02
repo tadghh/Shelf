@@ -220,12 +220,8 @@ pub fn reset_configuration() -> Result<(),  String>{
     }
 
     //Delete settings file
-    if let Err(err) = remove_file(get_settings_path()) {
-        restore_default_settings();
-        load_settings();
-
-        return Err(err.to_string());
-    }
+    //If its and error thats okay because we remake it anyway
+    let _ = remove_file(get_settings_path());
 
     //call default settings
     restore_default_settings();
