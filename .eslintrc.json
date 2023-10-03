@@ -1,9 +1,10 @@
 {
-	"extends": ["plugin:sonarjs/recommended"],
+	"plugins": ["sonarjs","optimize-regex"],
+	"extends": ["plugin:sonarjs/recommended", "next"],
 	"env": {
 		"browser": true,
 		"node": true,
 		"es2022": true
-	},
+	}
 
 }
