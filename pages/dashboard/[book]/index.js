@@ -173,10 +173,10 @@ export default function Book() {
     // });
   }, [book, router.events]);
   return (
-    <div className="max-h-screen bg-cover bg-center " ref={bookBackgroundUrl}>
-      <div className="flex h-full w-full animate-fade flex-col items-center backdrop-blur-sm backdrop-brightness-50 transition-opacity duration-100 ease-out ">
+    <div className="max-h-screen bg-center bg-cover " ref={bookBackgroundUrl}>
+      <div className="flex flex-col items-center w-full h-full transition-opacity duration-100 ease-out animate-fade backdrop-blur-sm backdrop-brightness-50 ">
         <div
-          className="z-50 my-5 ml-20 flex flex-col items-center justify-items-center bg-white opacity-100 "
+          className="z-50 flex flex-col items-center my-5 ml-20 bg-white opacity-100 justify-items-center "
           style={{
             height: `${viewerHeight}px`,
             width: `${viewerWidth}px`,
