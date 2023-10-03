@@ -1,21 +1,21 @@
 [package]
 name = "app"
-version = "0.1.0"
+version = "0.1.2"
 description = "A place to store and read your books"
 authors = ["Tadgh Henry"]
 license = ""
-repository = ""
+repository = "https://github.com/tadghh/Shelf/"
 default-run = "app"
 edition = "2021"
-rust-version = "1.59"
+rust-version = "1.72.1"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.2.1", features = [] }
+tauri-build = { version = "1.5.0", features = [] }
 
 [dependencies]
-tauri = { version = "1.2.4", features = [ "window-set-min-size", "window-set-title", "window-set-size", "dialog-open", "protocol-asset"] }
+tauri = { version = "1.5.1", features = [ "window-set-min-size", "window-set-title", "window-set-size", "dialog-open", "protocol-asset"] }
 epub = "2.0.0"
 rand = "0.8.5"
 serde = { version = "1.0", features = ["derive"] }

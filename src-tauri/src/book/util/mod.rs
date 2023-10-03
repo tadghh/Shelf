@@ -58,8 +58,8 @@ pub fn get_config_dir() -> PathBuf {
 }
 
 pub fn get_cache_dir() -> PathBuf {
-    let cache_dir = app_cache_dir( &current_context()).expect("Failed to get cache directory");
-
+    let mut cache_dir = app_cache_dir( &current_context()).expect("Failed to get cache directory");
+    cache_dir.push("cache");
     if let Err(err) = create_dir_all(&cache_dir) {
         eprintln!("Error creating cache directory: {:?}", err);
     }

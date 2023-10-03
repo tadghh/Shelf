@@ -219,7 +219,7 @@ pub fn reset_configuration() -> Result<(),  String>{
     println!("c {:?}",get_covers_path());
 
 
-    let _ = remove_dir_all(get_covers_path());
+    let _ = remove_dir_all(get_cache_dir());
 
     //Delete settings file
     //If its an error thats okay because we remake the settings file anyway
