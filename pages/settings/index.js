@@ -29,7 +29,7 @@ export default function Settings() {
       });
   };
   return (
-    <div className="duration-550 ml-20 min-h-screen animate-fade flex-col px-5 py-2 transition-opacity ease-in-out">
+    <div className="flex-col min-h-screen px-5 py-2 ml-20 transition-opacity ease-in-out duration-550 animate-fade">
       {settingsItemsEnum.length != 0 ? (
         <>
           <SettingsItem
@@ -53,7 +53,7 @@ export default function Settings() {
             settingsConfigString={settingsItemsEnum.COVER_BACKGROUND}
             settingsType={SettingsTypes.TOGGLE}
           />
-          <div className="ml-auto mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
+          <div className="flex items-center justify-center h-16 p-4 mt-2 ml-auto bg-white border w-44 rounded-xl">
             <button
               className=" rounded-lg  border-4 border-white bg-red-700 px-5 py-2.5 text-sm font-medium text-white transition-colors duration-300 ease-in-out hover:border-red-500 hover:bg-red-800"
               type="button"

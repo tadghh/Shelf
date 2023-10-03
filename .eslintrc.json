@@ -1,28 +1,9 @@
 {
-	"extends": ["eslint:recommended", "next/core-web-vitals"],
+	"extends": ["plugin:sonarjs/recommended"],
 	"env": {
 		"browser": true,
 		"node": true,
 		"es2022": true
 	},
-	"rules": {
-		"camelcase": 2,
-		"curly": 2,
-		"semi": "error",
-		"brace-style": [2, "1tbs"],
-		"semi-spacing": ["error", { "before": false, "after": true }],
-		"space-infix-ops": 2,
-		"space-unary-ops": [
-			2,
-			{
-				"words": true,
-				"nonwords": false,
-				"overrides": {
-					"new": false,
-					"++": true
-				}
-			}
-		],
-		"no-duplicate-imports": ["error", { "includeExports": true }]
-	}
+
 }
