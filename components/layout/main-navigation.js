@@ -5,7 +5,6 @@ import Link from "next/link";
 const navigation = [
   { name: "Books", href: "/dashboard", icon: HomeIcon },
   { name: "Settings", href: "/settings", icon: Cog8ToothIcon },
-  { name: "Favourites", href: "#", icon: StarIcon },
 ];
 
 export default function MainNavigation({ children = null }) {
