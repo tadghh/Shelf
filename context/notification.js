@@ -6,13 +6,13 @@ import React, {
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
-import NotificationCard from "../Components/NotificationCard";
+import NotificationCard from "../components/layout/notification";
 
 import {
   notificationState,
   notificationInitialState,
   notificationReducer,
-} from "./lib/notifications";
+} from "../lib/notifications/notification";
 
 export const NotificationContext = createContext();
 
