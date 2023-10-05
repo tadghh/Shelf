@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { notificationState } from "../../lib/notifications/notificationStates";
 
 function NotificationCard({ type, message }) {
-  const [currentStateColor, setColor] = useState("bg-white");
+  const [currentStateColor, setColor] = useState("-white");
   useEffect(() => {
     switch (type) {
       case notificationState.ALERT:
