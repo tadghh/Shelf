@@ -2,31 +2,33 @@ import React, { useEffect, useState } from "react";
 import { notificationState } from "../../lib/notifications/notificationStates";
 
 function NotificationCard({ type, message }) {
-  const [bgColor, setBgColor] = useState("bg-white");
+  const [currentStateColor, setColor] = useState("bg-white");
   useEffect(() => {
     switch (type) {
       case notificationState.ALERT:
-        setBgColor("bg-info");
+        setColor("-yellow-400");
         break;
       case notificationState.ERROR:
-        setBgColor("bg-error");
+        setColor("-red-700");
         break;
       case notificationState.SUCCESS:
-        setBgColor("bg-success");
+        setColor("-green-700");
         break;
       case notificationState.WARNING:
-        setBgColor("bg-warning");
+        setColor("-orange-600");
         break;
       default:
-        setBgColor("bg-gray-300");
+        setColor("-gray-300");
         break;
     }
   }, [type, message]);
 
   return (
-    <div className={`card w-96 ${bgColor} text-primary-content`}>
-      <div className="card-body">
-        <h2 className="card-title">Notification</h2>
+    <div
+      className={`w-72 border${currentStateColor} bg${currentStateColor} rounded-md`}
+    >
+      <div className="p-2 text-black">
+        <h2 className="font-bold">Notification</h2>
         <p>{message}</p>
       </div>
     </div>
