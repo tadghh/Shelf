@@ -26,11 +26,14 @@ export default function Settings() {
     invoke("reset_configuration")
       .then(() => {
         setRerenderKey((prevKey) => prevKey + 1);
+        notify(
+          notificationState.SUCCESS,
+          "Settings and cache reset successfully.",
+        );
       })
       .catch((error) => {
-        console.error("Error resetting configuration:", error);
+        notify(notificationState.ERROR, "An error occured when resetting.");
       });
-    notify(notificationState.ALERT, "This is an  information notification");
   };
   return (
     <div className="duration-550 ml-20 min-h-screen animate-fade flex-col px-5 py-2 transition-opacity ease-in-out">
