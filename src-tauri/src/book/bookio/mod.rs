@@ -99,8 +99,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         }
     };
 
-    let bro = Path::new(&dir);
-    if !bro.exists() {
+    if !Path::new(&dir).exists() {
         return None;
     }
 
@@ -108,10 +107,11 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         .unwrap()
         .filter_map(|entry| {
             let path = entry.unwrap().path();
-            if path.is_file() && path.extension().unwrap() == "epub" {
-                Some(path.to_str().unwrap().to_owned())
-            } else {
-                None
+            match path {
+                p if p.is_file() && p.extension().unwrap() == "epub" => {
+                    Some(p.to_str().unwrap().to_owned())
+                }
+                _ => None,
             }
         })
         .collect();
@@ -140,16 +140,14 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             Err(_) => Vec::new(),
         };
 
-        let current_length = &book_json.len();
+        let current_length = book_json.len();
 
         println!(
             "Current found {:?} Book Json {:?}",
             epub_amount, current_length
         );
-        if current_length != &epubs.len() {
-            let book_json_len = Arc::new(AtomicUsize::new(book_json.clone().len()));
-            let book_json_test = Arc::new(Mutex::new(&book_json));
 
+        if current_length != epub_amount {
             let new_books: Vec<(Book, usize)> = epubs
                 .par_iter()
                 .filter_map(|item| {
@@ -180,15 +178,16 @@ pub fn initialize_books() -> Option<Vec<Book>> {
                 })
                 .collect::<Vec<_>>();
 
-            book_json = book_json_guard.clone();
-            // finish this add the book at the index and keep track of offset
-            let final_length = book_json_len.load(Ordering::SeqCst);
-
-            if book_json.len() != final_length {
-                println!("Changes are presetn");
+            if new_books.len() != 0 {
                 file_changes = true;
-            } else {
-                println!("Did the search and the lenght is not diff");
+            }
+
+            //Can we use the new_books array to check instead of final lenght
+            let mut index_offset = 0;
+            for x in new_books {
+                println!("Index {:?} and book {:?}", x.1,x.0);
+                book_json.insert(x.1 + index_offset, x.0);
+                index_offset += 1;
             }
         }
     } else {
