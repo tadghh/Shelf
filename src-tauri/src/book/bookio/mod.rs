@@ -76,7 +76,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
 
     let mut file_changes = false;
 
-    let mut book_json: Vec<Book>;
+    let mut book_collection: Vec<Book>;
 
     let json_path = get_cache_dir()
         .join(get_cache_file_name())
@@ -130,12 +130,12 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             .create(true)
             .open(&json_path);
 
-        book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
+        book_collection = match serde_json::from_reader(BufReader::new(file.unwrap())) {
             Ok(data) => data,
             Err(_) => Vec::new(),
         };
 
-        let current_length = book_json.len();
+        let current_length = book_collection.len();
 
         if current_length != epub_amount {
             let new_books: Vec<(Book, usize)> = epub_paths
@@ -146,7 +146,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
                         .expect("The epub path was bad")
                         .mdata("title")
                     {
-                        if let Some(index) = chunk_binary_search_index(&book_json, &title) {
+                        if let Some(index) = chunk_binary_search_index(&book_collection, &title) {
                             return Some((Book::create_book(epub_path, title), index));
                         }
                     }
@@ -157,7 +157,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             if new_books.len() != 0 {
                 let mut index_offset = 0;
                 for (book, index) in new_books {
-                    book_json.insert(index + index_offset, book);
+                    book_collection.insert(index + index_offset, book);
                     index_offset += 1;
                 }
 
@@ -165,17 +165,17 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             }
         }
     } else {
-        book_json = create_book_collection(&epub_paths);
+        book_collection = create_book_collection(&epub_paths);
         file_changes = true;
     }
 
     if file_changes {
         let file = File::create(json_path).expect("JSON path should be defined, and a valid path");
 
-        serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist");
+        serde_json::to_writer_pretty(file, &book_collection).expect("The book JSON should exist");
     }
 
     println!("Execution time: {} ms", start_time.elapsed().as_millis());
 
-    Some(book_json)
+    Some(book_collection)
 }
