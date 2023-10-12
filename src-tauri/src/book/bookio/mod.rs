@@ -1,18 +1,24 @@
 use epub::doc::EpubDoc;
 use std::{
-    fs::{ self, File, OpenOptions, create_dir_all },
-    io::{ BufReader, Write },
-    path::{ Path, PathBuf },
-    sync::{ atomic::{ AtomicUsize, Ordering }, Arc, Mutex },
+    fs::{self, create_dir_all, File, OpenOptions},
+    io::{BufReader, Write},
+    path::{Path, PathBuf},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
+    },
     time::Instant,
 };
 
-use rayon::prelude::{ IntoParallelRefIterator, ParallelIterator };
 use crate::{
-    book::{ util::{ chunk_binary_search_index, get_cache_dir }, BOOK_JSON, Book, create_cover },
-    shelf::{ get_cache_file_name, get_configuration_option, get_cover_image_folder_name },
+    book::{
+        create_cover,
+        util::{chunk_binary_search_index, get_cache_dir},
+        Book, BOOK_JSON,
+    },
+    shelf::{get_cache_file_name, get_configuration_option, get_cover_image_folder_name},
 };
-
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 
 /// Writes the cover image to the specified path
 ///
@@ -86,6 +92,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         .to_string()
         .clone();
 
+        //Need to add support for book_location being an array of string
     let dir = match get_configuration_option("book_location".to_string()) {
         Some(val) => val,
         None => {
@@ -93,26 +100,29 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         }
     };
 
-    let bro = Path::new(&dir);
-    if !bro.exists() {
+    if !Path::new(&dir).exists() {
         return None;
     }
 
-    let epubs: Vec<String> = fs
-        ::read_dir(dir)
+    let epubs: Vec<String> = fs::read_dir(dir)
         .unwrap()
         .filter_map(|entry| {
             let path = entry.unwrap().path();
-            if path.is_file() && path.extension().unwrap() == "epub" {
-                Some(path.to_str().unwrap().to_owned())
-            } else {
-                None
+            match path {
+                p if p.is_file() && p.extension().unwrap() == "epub" => {
+                    Some(p.to_str().unwrap().to_owned())
+                }
+                _ => None,
             }
         })
         .collect();
 
+    let epub_amount = epubs.len();
+
     let mut covers_directory = get_cache_dir();
+
     covers_directory.push(get_cover_image_folder_name());
+
     if let Err(err) = create_dir_all(&covers_directory) {
         eprintln!("Error creating cover directory: {:?}", err);
     }
@@ -124,48 +134,56 @@ pub fn initialize_books() -> Option<Vec<Book>> {
     }
 
     if Path::new(&json_path).exists() {
-        let file = OpenOptions::new().read(true).write(true).create(true).open(&json_path);
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&json_path);
 
         book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
             Ok(data) => data,
             Err(_) => Vec::new(),
         };
 
-        let current_length = &book_json.len();
-        if current_length != &epubs.len() {
-            let book_json_len = Arc::new(AtomicUsize::new(book_json.len()));
-            let book_json_test = Arc::new(Mutex::new(book_json));
+        let current_length = book_json.len();
 
-            epubs.par_iter().for_each(|item| {
-                let item_normalized = item.replace('\\', "/");
-                let title = EpubDoc::new(&item_normalized).unwrap().mdata("title").unwrap();
-                let mut book_json_guard = book_json_test.lock().unwrap();
-                let index = chunk_binary_search_index(&book_json_guard, &title);
+        if current_length != epub_amount {
+            let new_books: Vec<(Book, usize)> = epubs
+                .par_iter()
+                .filter_map(|item| {
+                    let item_normalized = item.replace('\\', "/");
 
-                //TODO: Duplicated code?
-                match index {
-                    Some(index) => {
-                        let new_book = Book {
-                            cover_location: create_cover(
-                                item_normalized.to_string(),
-                                &covers_directory
-                            )
+                    if let Some(title) = EpubDoc::new(&item_normalized)
+                        .expect("The epub path was bad")
+                        .mdata("title")
+                    {
+                        if let Some(index) = chunk_binary_search_index(&book_json, &title) {
+                            let new_book = Book {
+                                cover_location: create_cover(
+                                    item_normalized.to_string(),
+                                    &covers_directory,
+                                )
                                 .unwrap()
                                 .to_string_lossy()
                                 .to_string(),
-                            book_location: item_normalized,
-                            title,
-                        };
-                        book_json_guard.insert(index, new_book);
-                        book_json_len.fetch_sub(1, Ordering::SeqCst);
-                    }
-                    None => println!("There was no index"),
-                }
-            });
-            book_json = Arc::try_unwrap(book_json_test).unwrap().into_inner().unwrap();
-            let final_length = book_json_len.load(Ordering::SeqCst);
+                                book_location: item_normalized,
+                                title,
+                            };
 
-            if book_json.len() != final_length {
+                            return Some((new_book, index));
+                        }
+                    }
+                    None
+                })
+                .collect::<Vec<_>>();
+
+            if new_books.len() != 0 {
+                let mut index_offset = 0;
+                for (book, index) in new_books {
+                    book_json.insert(index + index_offset, book);
+                    index_offset += 1;
+                }
+
                 file_changes = true;
             }
         }
@@ -180,8 +198,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist");
     }
 
-    let elapsed_time = start_time.elapsed();
-    println!("Execution time: {} ms", elapsed_time.as_millis());
+    println!("Execution time: {} ms", start_time.elapsed().as_millis());
 
     Some(book_json)
 }

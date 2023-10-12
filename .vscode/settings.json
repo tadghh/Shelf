@@ -8,7 +8,6 @@
 	"eslint.validate": [
 		"javascript"
 	],
-	"editor.defaultFormatter": "jinxdash.prettier-rust",
 	"rust-analyzer.showUnlinkedFileNotification": false,
 	"[javascript]": {
 		"editor.defaultFormatter": "esbenp.prettier-vscode"

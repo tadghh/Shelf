@@ -216,7 +216,7 @@ pub fn reset_configuration() -> Result<(),  String>{
     //TODO: Handle these errors on front end, let user know it didnt work
     //Delete book json and covers
     println!("{:?}",get_settings_path());
-    println!("c {:?}",get_covers_path());
+    println!("{:?}",get_covers_path());
 
 
     let _ = remove_dir_all(get_cache_dir());
