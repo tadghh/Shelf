@@ -50,7 +50,20 @@ pub struct Book {
     book_location: String,
     title: String,
 }
-
+impl Book {
+    fn create_book(book_location: &PathBuf, title: &String ) -> Book {
+        Book {
+        cover_location: create_cover(
+            book_location.to_string()
+        )
+        .unwrap()
+        .to_string_lossy()
+        .to_string(),
+        book_location: book_location,
+        title,
+    }
+    }
+}
 /// Looks for the books url inside the json file, returning its path
 ///
 /// # Arguments
@@ -135,7 +148,7 @@ fn find_cover(mut doc: EpubDoc<BufReader<File>>, cover_path: &PathBuf) -> Result
 ///
 /// * `book_directory` - The directory of the book
 ///
-fn create_cover(book_directory: String) -> Result<PathBuf, String> {
+fn create_cover(book_directory: PathBuf) -> Result<PathBuf, String> {
     let mut doc = EpubDoc::new(book_directory).map_err(|err|
         format!("Error opening EpubDoc: {}", err)
     )?;

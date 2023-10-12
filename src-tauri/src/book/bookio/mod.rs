@@ -59,8 +59,9 @@ pub fn create_book_vec(book_paths: &Vec<String>) -> Vec<Book> {
 
             if let Ok(cover_location) = create_cover(book.to_string()) {
                 let new_book = Book {
-                    cover_location: cover_location.to_string_lossy().to_string(),
-                    book_location: book.replace('\\', "/"),
+                    // cover_location: cover_location.to_string_lossy().to_string(),
+                    cover_location: cover_location,
+                    book_location: book,
                     title,
                 };
                 Some(new_book)
