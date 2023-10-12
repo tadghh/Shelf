@@ -49,22 +49,13 @@ pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &PathBuf) -> Res
 /// # Arguments
 ///
 /// * `items` - A vector containing the book directories
-/// * `write_directory` - A string representing the path to write to
 ///
-pub fn create_book_vec(book_paths: &Vec<String>) -> Vec<Book> {
+pub fn create_book_collection(book_paths: &Vec<PathBuf>) -> Vec<Book> {
     let books: Vec<Book> = book_paths
         .par_iter()
         .filter_map(|book| {
-            let title = EpubDoc::new(book).unwrap().mdata("title").unwrap();
-
-            if let Ok(cover_location) = create_cover(book.to_string()) {
-                let new_book = Book {
-                    // cover_location: cover_location.to_string_lossy().to_string(),
-                    cover_location: cover_location,
-                    book_location: book,
-                    title,
-                };
-                Some(new_book)
+            if let Some(title) = EpubDoc::new(book).unwrap().mdata("title") {
+                Some(Book::create_book(book, title))
             } else {
                 None // Skip this book and continue with the next one
             }
@@ -93,7 +84,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         .to_string()
         .clone();
 
-        //Need to add support for book_location being an array of string
+    //Need to add support for book_location being an array of string
     let dir = match get_configuration_option("book_location".to_string()) {
         Some(val) => val,
         None => {
@@ -110,9 +101,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         .filter_map(|entry| {
             let path = entry.unwrap().path();
             match path {
-                p if p.is_file() && p.extension().unwrap() == "epub" => {
-                    Some(p)
-                }
+                p if p.is_file() && p.extension().unwrap() == "epub" => Some(p),
                 _ => None,
             }
         })
@@ -152,16 +141,13 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             let new_books: Vec<(Book, usize)> = epub_paths
                 .par_iter()
                 .filter_map(|epub_path| {
-                   // let item_normalized = epub_path.replace('\\', "/");
 
                     if let Some(title) = EpubDoc::new(&epub_path)
                         .expect("The epub path was bad")
                         .mdata("title")
                     {
                         if let Some(index) = chunk_binary_search_index(&book_json, &title) {
-                            let new_book = Book::create_book(epub_path, &title);
-
-                            return Some((new_book, index));
+                            return Some((Book::create_book(epub_path, title), index));
                         }
                     }
                     None
@@ -179,7 +165,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             }
         }
     } else {
-        book_json = create_book_vec(&epub_paths, &covers_directory);
+        book_json = create_book_collection(&epub_paths);
         file_changes = true;
     }
 
