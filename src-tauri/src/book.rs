@@ -25,26 +25,26 @@ pub mod bookio;
 pub mod util;
 
 /// This is used for organization
-struct BookCache {
-    books: Vec<Book>,
-    json_path: String,
-}
+// struct BookCache<'a> {
+//     books: Vec<Book<'a>>,
+//     json_path: String,
+// }
 
-impl BookCache {
-    /// Used to update the location of the book_cache.json file
-    fn update_path(&mut self, new_json_path: String) {
-        self.json_path = new_json_path;
-    }
-    /// Used to update the contents of the book_cache.json file
-    fn update_books(&mut self, new_books: Vec<Book>) {
-        self.books = new_books;
-    }
-}
+// impl BookCache {
+//     /// Used to update the location of the book_cache.json file
+//     fn update_path(&mut self, new_json_path: String) {
+//         self.json_path = new_json_path;
+//     }
+//     /// Used to update the contents of the book_cache.json file
+//     fn update_books(&mut self, new_books: Vec<Book>) {
+//         self.books = new_books;
+//     }
+// }
 
-static mut BOOK_JSON: BookCache = BookCache {
-    books: Vec::new(),
-    json_path: String::new(),
-};
+// static mut BOOK_JSON: BookCache = BookCache {
+//     books: Vec::new(),
+//     json_path: String::new(),
+// };
 
 /// Used for handling books on the front end
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -53,6 +53,7 @@ pub struct Book<'a> {
     book_location: &'a str,
     title: &'a str,
 }
+
 impl<'a> Book<'a> {
     fn create_book<P: AsRef<Path>>(book_location: P, title: String) -> Book<'a> {
         Book {
