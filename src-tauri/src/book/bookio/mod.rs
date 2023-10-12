@@ -92,6 +92,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         .to_string()
         .clone();
 
+        //Need to add support for book_location being an array of string
     let dir = match get_configuration_option("book_location".to_string()) {
         Some(val) => val,
         None => {
@@ -115,9 +116,13 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             }
         })
         .collect();
+
     let epub_amount = epubs.len();
+
     let mut covers_directory = get_cache_dir();
+
     covers_directory.push(get_cover_image_folder_name());
+
     if let Err(err) = create_dir_all(&covers_directory) {
         eprintln!("Error creating cover directory: {:?}", err);
     }
@@ -142,23 +147,17 @@ pub fn initialize_books() -> Option<Vec<Book>> {
 
         let current_length = book_json.len();
 
-        println!(
-            "Current found {:?} Book Json {:?}",
-            epub_amount, current_length
-        );
-
         if current_length != epub_amount {
             let new_books: Vec<(Book, usize)> = epubs
                 .par_iter()
                 .filter_map(|item| {
                     let item_normalized = item.replace('\\', "/");
 
-
                     if let Some(title) = EpubDoc::new(&item_normalized)
-                                                .expect("The epub path was bad")
-                                                .mdata("title") {
+                        .expect("The epub path was bad")
+                        .mdata("title")
+                    {
                         if let Some(index) = chunk_binary_search_index(&book_json, &title) {
-
                             let new_book = Book {
                                 cover_location: create_cover(
                                     item_normalized.to_string(),
@@ -179,15 +178,13 @@ pub fn initialize_books() -> Option<Vec<Book>> {
                 .collect::<Vec<_>>();
 
             if new_books.len() != 0 {
-                file_changes = true;
-            }
+                let mut index_offset = 0;
+                for (book, index) in new_books {
+                    book_json.insert(index + index_offset, book);
+                    index_offset += 1;
+                }
 
-            //Can we use the new_books array to check instead of final lenght
-            let mut index_offset = 0;
-            for x in new_books {
-                println!("Index {:?} and book {:?}", x.1,x.0);
-                book_json.insert(x.1 + index_offset, x.0);
-                index_offset += 1;
+                file_changes = true;
             }
         }
     } else {
@@ -201,8 +198,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist");
     }
 
-    let elapsed_time = start_time.elapsed();
-    println!("Execution time: {} ms", elapsed_time.as_millis());
+    println!("Execution time: {} ms", start_time.elapsed().as_millis());
 
     Some(book_json)
 }
