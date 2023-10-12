@@ -105,20 +105,20 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         return None;
     }
 
-    let epubs: Vec<String> = fs::read_dir(dir)
+    let epub_paths: Vec<PathBuf> = fs::read_dir(dir)
         .unwrap()
         .filter_map(|entry| {
             let path = entry.unwrap().path();
             match path {
                 p if p.is_file() && p.extension().unwrap() == "epub" => {
-                    Some(p.to_str().unwrap().to_owned())
+                    Some(p)
                 }
                 _ => None,
             }
         })
         .collect();
 
-    let epub_amount = epubs.len();
+    let epub_amount = epub_paths.len();
 
     let mut covers_directory = get_cache_dir();
 
@@ -149,27 +149,17 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         let current_length = book_json.len();
 
         if current_length != epub_amount {
-            let new_books: Vec<(Book, usize)> = epubs
+            let new_books: Vec<(Book, usize)> = epub_paths
                 .par_iter()
-                .filter_map(|item| {
-                    let item_normalized = item.replace('\\', "/");
+                .filter_map(|epub_path| {
+                   // let item_normalized = epub_path.replace('\\', "/");
 
-                    if let Some(title) = EpubDoc::new(&item_normalized)
+                    if let Some(title) = EpubDoc::new(&epub_path)
                         .expect("The epub path was bad")
                         .mdata("title")
                     {
                         if let Some(index) = chunk_binary_search_index(&book_json, &title) {
-                            let new_book = Book {
-                                cover_location: create_cover(
-                                    item_normalized.to_string(),
-                                    &covers_directory,
-                                )
-                                .unwrap()
-                                .to_string_lossy()
-                                .to_string(),
-                                book_location: item_normalized,
-                                title,
-                            };
+                            let new_book = Book::create_book(epub_path, &title);
 
                             return Some((new_book, index));
                         }
@@ -189,7 +179,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             }
         }
     } else {
-        book_json = create_book_vec(&epubs, &covers_directory);
+        book_json = create_book_vec(&epub_paths, &covers_directory);
         file_changes = true;
     }
 

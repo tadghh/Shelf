@@ -1,18 +1,21 @@
 use std::{
-    fs::{ OpenOptions, File },
-    path::{ Path, PathBuf },
-    io::BufReader
+    fs::{File, OpenOptions},
+    io::BufReader,
+    path::{Path, PathBuf},
 };
 
-use serde::{ Deserialize, Serialize };
+use crate::{
+    book::{
+        bookio::write_cover_image,
+        util::{check_epub_resource, chunk_binary_search_index_load, sanitize_windows_filename},
+    },
+    shelf::get_cover_image_folder_name,
+};
 use epub::doc::EpubDoc;
 use regex::Regex;
-use xmltree::Element;
+use serde::{Deserialize, Serialize};
 use serde_json::from_reader;
-use crate::{book::{
-     util::{ chunk_binary_search_index_load, check_epub_resource, sanitize_windows_filename },
-     bookio::write_cover_image
-}, shelf::get_cover_image_folder_name};
+use xmltree::Element;
 
 use crate::xml::extract_image_source;
 
@@ -45,23 +48,21 @@ static mut BOOK_JSON: BookCache = BookCache {
 
 /// Used for handling books on the front end
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Book {
-    cover_location: String,
-    book_location: String,
-    title: String,
+pub struct Book<'a> {
+    cover_location: &'a str,
+    book_location: &'a str,
+    title: &'a str,
 }
-impl Book {
-    fn create_book(book_location: &PathBuf, title: &String ) -> Book {
+impl<'a> Book<'a> {
+    fn create_book<P: AsRef<Path>>(book_location: P, title: String) -> Book<'a> {
         Book {
-        cover_location: create_cover(
-            book_location.to_string()
-        )
-        .unwrap()
-        .to_string_lossy()
-        .to_string(),
-        book_location: book_location,
-        title,
-    }
+            cover_location: &create_cover(book_location.as_ref())
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            book_location: book_location.as_ref().to_str().unwrap(),
+            title: title.as_str(),
+        }
     }
 }
 /// Looks for the books url inside the json file, returning its path
@@ -76,7 +77,11 @@ pub fn load_book(title: String) -> Option<Book> {
         let book_cache: &String = &BOOK_JSON.json_path;
 
         if Path::new(&book_cache).exists() {
-            let file = OpenOptions::new().read(true).write(true).create(true).open(book_cache);
+            let file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(book_cache);
 
             BOOK_JSON.update_books(match from_reader(BufReader::new(file.unwrap())) {
                 Ok(data) => data,
@@ -111,14 +116,12 @@ fn find_cover(mut doc: EpubDoc<BufReader<File>>, cover_path: &PathBuf) -> Result
     let epub_resources = doc.resources.clone();
 
     //The scenario where the cover_id has a xhtml file set as its property
-    if
-        let Some(cover_id) = check_epub_resource(
-            Regex::new(r"(?i)cover").unwrap(),
-            Regex::new(r"application/xhtml\+xml").unwrap(),
-            &epub_resources,
-            &mut doc
-        )
-    {
+    if let Some(cover_id) = check_epub_resource(
+        Regex::new(r"(?i)cover").unwrap(),
+        Regex::new(r"application/xhtml\+xml").unwrap(),
+        &epub_resources,
+        &mut doc,
+    ) {
         let resource = doc.get_resource(&cover_id);
 
         let file_content = &resource.unwrap().0;
@@ -126,14 +129,12 @@ fn find_cover(mut doc: EpubDoc<BufReader<File>>, cover_path: &PathBuf) -> Result
         let root = Element::parse(buffer_str.as_bytes()).expect("Failed to parse XML");
 
         if let Some(image_element_src) = extract_image_source(&root) {
-            if
-                let Some(src) = check_epub_resource(
-                    Regex::new(&image_element_src).unwrap(),
-                    Regex::new(r"image/jpeg").unwrap(),
-                    &epub_resources,
-                    &mut doc
-                )
-            {
+            if let Some(src) = check_epub_resource(
+                Regex::new(&image_element_src).unwrap(),
+                Regex::new(r"image/jpeg").unwrap(),
+                &epub_resources,
+                &mut doc,
+            ) {
                 write_cover_image(doc.get_resource(&src), cover_path)?;
             }
         }
@@ -148,18 +149,18 @@ fn find_cover(mut doc: EpubDoc<BufReader<File>>, cover_path: &PathBuf) -> Result
 ///
 /// * `book_directory` - The directory of the book
 ///
-fn create_cover(book_directory: PathBuf) -> Result<PathBuf, String> {
-    let mut doc = EpubDoc::new(book_directory).map_err(|err|
-        format!("Error opening EpubDoc: {}", err)
-    )?;
+fn create_cover<P: AsRef<Path>>(book_directory: P) -> Result<PathBuf, String> {
+    let mut doc =
+        EpubDoc::new(book_directory).map_err(|err| format!("Error opening EpubDoc: {}", err))?;
 
     let epub_resources = doc.resources.clone();
 
     //Base filename off the books title
 
-    let cover_path = &get_cache_dir().join(
-        sanitize_windows_filename(format!("{}.jpg", doc.mdata("title").unwrap()))
-    );
+    let cover_path = &get_cache_dir().join(sanitize_windows_filename(format!(
+        "{}.jpg",
+        doc.mdata("title").unwrap()
+    )));
 
     //The below get_cover method only looks for a certain structure of cover image
     if doc.get_cover().is_some() {
@@ -170,14 +171,12 @@ fn create_cover(book_directory: PathBuf) -> Result<PathBuf, String> {
         //Look for the cover_id in the epub, we are just looking for any property containing the word cover
         //This is because EpubDoc looks for an exact string, and some epubs dont contain it
         // let mimetype = r"image/jpeg";
-        if
-            let Some(cover_id) = check_epub_resource(
-                Regex::new(r"(?i)cover").unwrap(),
-                Regex::new(r"image/jpeg").unwrap(),
-                &epub_resources,
-                &mut doc
-            )
-        {
+        if let Some(cover_id) = check_epub_resource(
+            Regex::new(r"(?i)cover").unwrap(),
+            Regex::new(r"image/jpeg").unwrap(),
+            &epub_resources,
+            &mut doc,
+        ) {
             let cover: Option<(Vec<u8>, String)> = doc.get_resource(&cover_id);
 
             if let Err(err) = write_cover_image(cover, cover_path) {
