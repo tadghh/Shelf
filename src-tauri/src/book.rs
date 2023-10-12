@@ -9,12 +9,14 @@ use epub::doc::EpubDoc;
 use regex::Regex;
 use xmltree::Element;
 use serde_json::from_reader;
-use crate::book::{
+use crate::{book::{
      util::{ chunk_binary_search_index_load, check_epub_resource, sanitize_windows_filename },
      bookio::write_cover_image
-};
+}, shelf::get_cover_image_folder_name};
 
 use crate::xml::extract_image_source;
+
+use self::util::get_cache_dir;
 
 pub mod bookio;
 pub mod util;
@@ -132,9 +134,8 @@ fn find_cover(mut doc: EpubDoc<BufReader<File>>, cover_path: &PathBuf) -> Result
 /// # Arguments
 ///
 /// * `book_directory` - The directory of the book
-/// * `write_directory` - The path to write the cover data too
 ///
-fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result<PathBuf, String> {
+fn create_cover(book_directory: String) -> Result<PathBuf, String> {
     let mut doc = EpubDoc::new(book_directory).map_err(|err|
         format!("Error opening EpubDoc: {}", err)
     )?;
@@ -143,7 +144,7 @@ fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result<Pat
 
     //Base filename off the books title
 
-    let cover_path = &write_directory.join(
+    let cover_path = get_cache_dir().join(
         sanitize_windows_filename(format!("{}.jpg", doc.mdata("title").unwrap()))
     );
 
