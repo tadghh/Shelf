@@ -51,16 +51,16 @@ pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &PathBuf) -> Res
 /// * `items` - A vector containing the book directories
 /// * `write_directory` - A string representing the path to write to
 ///
-pub fn create_book_vec(items: &Vec<String>, write_directory: &PathBuf) -> Vec<Book> {
-    let books: Vec<Book> = items
+pub fn create_book_vec(book_paths: &Vec<String>) -> Vec<Book> {
+    let books: Vec<Book> = book_paths
         .par_iter()
-        .filter_map(|item| {
-            let title = EpubDoc::new(item).unwrap().mdata("title").unwrap();
+        .filter_map(|book| {
+            let title = EpubDoc::new(book).unwrap().mdata("title").unwrap();
 
-            if let Ok(cover_location) = create_cover(item.to_string(), write_directory) {
+            if let Ok(cover_location) = create_cover(book.to_string()) {
                 let new_book = Book {
                     cover_location: cover_location.to_string_lossy().to_string(),
-                    book_location: item.replace('\\', "/"),
+                    book_location: book.replace('\\', "/"),
                     title,
                 };
                 Some(new_book)

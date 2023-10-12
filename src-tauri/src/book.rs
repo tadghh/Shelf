@@ -144,7 +144,7 @@ fn create_cover(book_directory: String) -> Result<PathBuf, String> {
 
     //Base filename off the books title
 
-    let cover_path = get_cache_dir().join(
+    let cover_path = &get_cache_dir().join(
         sanitize_windows_filename(format!("{}.jpg", doc.mdata("title").unwrap()))
     );
 
