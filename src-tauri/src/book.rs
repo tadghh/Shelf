@@ -25,26 +25,26 @@ pub mod bookio;
 pub mod util;
 
 /// This is used for organization
-// struct BookCache<'a> {
-//     books: Vec<Book<'a>>,
-//     json_path: String,
-// }
+struct BookCache<'a> {
+    books: Vec<Book<'a>>,
+    json_path: String,
+}
 
-// impl BookCache {
-//     /// Used to update the location of the book_cache.json file
-//     fn update_path(&mut self, new_json_path: String) {
-//         self.json_path = new_json_path;
-//     }
-//     /// Used to update the contents of the book_cache.json file
-//     fn update_books(&mut self, new_books: Vec<Book>) {
-//         self.books = new_books;
-//     }
-// }
+impl BookCache<'_> {
+    /// Used to update the location of the book_cache.json file
+    fn update_path(&mut self, new_json_path: String) {
+        self.json_path = new_json_path;
+    }
+    /// Used to update the contents of the book_cache.json file
+    fn update_books(&mut self, new_books: Vec<Book>) {
+        self.books = new_books;
+    }
+}
 
-// static mut BOOK_JSON: BookCache = BookCache {
-//     books: Vec::new(),
-//     json_path: String::new(),
-// };
+static mut BOOK_JSON: BookCache = BookCache {
+    books: Vec::new(),
+    json_path: String::new(),
+};
 
 /// Used for handling books on the front end
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -73,7 +73,7 @@ impl<'a> Book<'a> {
 /// * `title` - The title of the book to load
 ///
 #[tauri::command]
-pub fn load_book(title: String) -> Option<Book> {
+pub fn load_book(title: String) -> Option<Book<'static>> {
     unsafe {
         let book_cache: &String = &BOOK_JSON.json_path;
 
@@ -89,17 +89,17 @@ pub fn load_book(title: String) -> Option<Book> {
                 Err(_) => Vec::new(),
             });
 
-            let books = &BOOK_JSON.books;
-            let book_index = chunk_binary_search_index_load(books, &title);
-
-            if let Some(book) = books.get(book_index.unwrap()) {
-                // Accessing the book at the specified index
-                return Some(book.clone());
+            let books = BOOK_JSON.books;
+            if let Some(book_index) = chunk_binary_search_index_load(&books, &title) {
+                if let Some(book) = books.get(book_index) {
+                    // Accessing the book at the specified index
+                    return Some(book.clone());
+                }
             } else {
-                println!("Invalid index");
+                eprintln!("Invalid index");
             }
         } else {
-            println!("JSON File missing");
+            eprintln!("JSON File missing");
         }
     }
 
