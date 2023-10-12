@@ -115,6 +115,7 @@ pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<us
             let mid = (unwrapped_low + high) / 2;
             match dataset[mid].title.cmp(&title) {
                 Ordering::Equal => {
+                    //return Some(mid);
                     return None;
                 }
                 Ordering::Less => {
