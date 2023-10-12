@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
-    fs::{OpenOptions, remove_file, remove_dir_all, File},
-    io::{ BufRead, BufReader, Seek, SeekFrom, Write, Read },
+    fs::{OpenOptions, remove_file, remove_dir_all},
+    io::{ BufRead, BufReader, Seek, SeekFrom, Write, Read, Error },
     path::{PathBuf, Path},
 };
 
@@ -10,10 +10,14 @@ use crate::book::util::{get_config_dir, get_cache_dir};
 static CACHE_FILE_NAME: &str = "book_cache.json";
 static SETTINGS_FILE_NAME: &str = "shelf_settings.conf";
 static COVER_IMAGE_FOLDER_NAME: &str = "cover_cache";
+static CONFIG_FOLDER_NAME: &str = "config";
 static mut SETTINGS_MAP: Option<HashMap<String, String>> = None;
 
 fn get_settings_path() -> PathBuf {
     get_config_dir().join(SETTINGS_FILE_NAME)
+}
+fn get_covers_path() -> PathBuf {
+    get_cache_dir().join(COVER_IMAGE_FOLDER_NAME)
 }
 
 ///Get the name of the cover image folder
@@ -25,10 +29,9 @@ pub fn get_cover_image_folder_name() -> &'static str {
 pub fn get_cache_file_name() -> &'static str {
     CACHE_FILE_NAME
 }
-
-///Get the name of the settings file
-pub fn get_settings_name() -> &'static str {
-    SETTINGS_FILE_NAME
+///Get the book cache file name
+pub fn get_config_folder_name() -> &'static str {
+    CONFIG_FOLDER_NAME
 }
 
 ///This is how we get out settings back over to nextjs.
@@ -54,18 +57,20 @@ pub fn shelf_settings_values() -> HashMap<String, (String, String)> {
         })
         .collect()
 }
-fn create_default_settings(settings_path: &Path) -> Result<(), std::io::Error> {
+
+/// Creates a settings file and fills it with mostly valid default values.
+fn create_default_settings() -> Result<(), Error> {
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)
         .create(true)
-        .open(settings_path)
+        .open(get_settings_path())
         .expect("Failed to open or create settings file");
 
     // Generate default settings from shelf_settings_values
     let default_settings: HashMap<String, (String, String)> = shelf_settings_values();
 
-    for (setting_name, (lowercase_name, default_value)) in default_settings.iter() {
+    for (_setting_name, (lowercase_name, default_value)) in default_settings.iter() {
         let setting_str = format!("{}={}\n", lowercase_name, default_value);
         file.write_all(setting_str.as_bytes())?;
     }
@@ -76,7 +81,7 @@ fn load_settings(){
     let settings_path = get_settings_path();
     let bro = Path::new(&settings_path);
     if !bro.exists() {
-        let _ = create_default_settings(&settings_path);
+        let _ = create_default_settings();
     }
     let file = match
         OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
@@ -100,7 +105,7 @@ fn load_settings(){
     for line in reader.lines() {
         let line_content = line.unwrap();
         let split: Vec<&str> = line_content.split('=').collect();
-        print!("{:?}", split);
+
         if split.len() == 2 {
             settings_map.insert(split[0].to_string(), split[1].to_string());
         }
@@ -120,16 +125,12 @@ fn load_settings_into_memory() {
 
 /// Sets all settings consts to be "unset" or default
 pub fn restore_default_settings() {
-    load_settings_into_memory();
-
-    //TODO: Unset is not a "good" default value
     let default_settings: HashMap<String, (String, String)> = shelf_settings_values();
 
     for (_setting_name, (lowercase_name, default_value)) in default_settings.iter() {
         change_configuration_option(lowercase_name.to_string(), default_value.to_string());
-
     }
-
+    load_settings_into_memory();
 }
 
 /// Returns the setting for the provided value
@@ -142,7 +143,6 @@ pub fn restore_default_settings() {
 pub fn get_configuration_option(option_name: String) -> Option<String> {
     load_settings_into_memory();
 
-    //TODO: Could encounter error if memory issue
     let settings_value = unsafe { SETTINGS_MAP.as_ref().and_then(|map| map.get(&option_name).cloned()) };
 
     settings_value
@@ -215,12 +215,15 @@ pub fn reset_configuration() -> Result<(),  String>{
 
     //TODO: Handle these errors on front end, let user know it didnt work
     //Delete book json and covers
-    if let Err(err) = remove_dir_all(get_cache_dir()) {
-        return Err(err.to_string());
-    }
+    println!("{:?}",get_settings_path());
+    println!("c {:?}",get_covers_path());
+
+
+    let _ = remove_dir_all(get_cache_dir());
 
     //Delete settings file
-    //If its and error thats okay because we remake it anyway
+    //If its an error thats okay because we remake the settings file anyway
+    println!("{:?}",get_settings_path());
     let _ = remove_file(get_settings_path());
 
     //call default settings

@@ -1,6 +1,6 @@
 use epub::doc::EpubDoc;
 use std::{
-    fs::{ self, File, OpenOptions },
+    fs::{ self, File, OpenOptions, create_dir_all },
     io::{ BufReader, Write },
     path::{ Path, PathBuf },
     sync::{ atomic::{ AtomicUsize, Ordering }, Arc, Mutex },
@@ -10,7 +10,7 @@ use std::{
 use rayon::prelude::{ IntoParallelRefIterator, ParallelIterator };
 use crate::{
     book::{ util::{ chunk_binary_search_index, get_cache_dir }, BOOK_JSON, Book, create_cover },
-    shelf::{ get_cache_file_name, get_configuration_option },
+    shelf::{ get_cache_file_name, get_configuration_option, get_cover_image_folder_name },
 };
 
 
@@ -87,17 +87,17 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         .clone();
 
     let dir = match get_configuration_option("book_location".to_string()) {
-    Some(val) => val,
-    None => {
-        return None;
-    }
+        Some(val) => val,
+        None => {
+            return None;
+        }
     };
+
     let bro = Path::new(&dir);
     if !bro.exists() {
         return None;
     }
-    //Load epubs from the provided directory in the frontend, currently the dashboards component
-    //This breaks if the directory doesnt exist
+
     let epubs: Vec<String> = fs
         ::read_dir(dir)
         .unwrap()
@@ -111,7 +111,11 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         })
         .collect();
 
-    let covers_directory = &get_cache_dir();
+    let mut covers_directory = get_cache_dir();
+    covers_directory.push(get_cover_image_folder_name());
+    if let Err(err) = create_dir_all(&covers_directory) {
+        eprintln!("Error creating cover directory: {:?}", err);
+    }
 
     unsafe {
         if BOOK_JSON.json_path != json_path {
@@ -144,7 +148,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
                         let new_book = Book {
                             cover_location: create_cover(
                                 item_normalized.to_string(),
-                                covers_directory
+                                &covers_directory
                             )
                                 .unwrap()
                                 .to_string_lossy()
@@ -166,7 +170,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             }
         }
     } else {
-        book_json = create_book_vec(&epubs, covers_directory);
+        book_json = create_book_vec(&epubs, &covers_directory);
         file_changes = true;
     }
 

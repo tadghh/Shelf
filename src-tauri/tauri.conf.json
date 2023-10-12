@@ -46,8 +46,8 @@
         "digestAlgorithm": "sha256",
         "timestampUrl": "",
         "nsis":{
-          "headerImage": "../resources/logo_installer.bmp",
-          "sidebarImage": "../resources/logo_installer.bmp",
+          "headerImage": "../resources/installer_header.bmp",
+          "sidebarImage": "../resources/installer_sidebar.bmp",
           "installerIcon": "../resources/logo.ico",
           "installMode":"both"
         },

@@ -6,10 +6,13 @@ import { useEffect, useState } from "react";
 import SettingsItem from "@/components/settings/settings-item";
 import { SettingsTypes } from "@/lib/SettingsTypeEnum";
 import { SettingsItems } from "@/lib/SettingsItemEnum";
+import useNotification from "@/lib/notifications/notificationHook";
+import { notificationState } from "@/lib/notifications/notificationStates";
 
 export default function Settings() {
   const [settingsItemsEnum, setSettingsItemsEnum] = useState([]);
   const [rerenderKey, setRerenderKey] = useState(0);
+  const { notify } = useNotification();
 
   const updateSettingsItems = async () => {
     setSettingsItemsEnum(await SettingsItems());
@@ -23,9 +26,13 @@ export default function Settings() {
     invoke("reset_configuration")
       .then(() => {
         setRerenderKey((prevKey) => prevKey + 1);
+        notify(
+          notificationState.SUCCESS,
+          "Settings and cache reset successfully.",
+        );
       })
       .catch((error) => {
-        console.error("Error resetting configuration:", error);
+        notify(notificationState.ERROR, "An error occured when resetting.");
       });
   };
   return (
