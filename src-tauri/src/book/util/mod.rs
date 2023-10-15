@@ -1,14 +1,10 @@
-use base64::{ engine::general_purpose, Engine as _ };
+use base64::{engine::general_purpose, Engine as _};
 use epub::doc::EpubDoc;
 use regex::Regex;
 
 use tauri::{
-    generate_context,
-    Config,
-    api::path::{
-        app_config_dir,
-        app_cache_dir
-    }
+    api::path::{app_cache_dir, app_config_dir},
+    generate_context, Config,
 };
 
 use crate::shelf::get_config_folder_name;
@@ -16,16 +12,16 @@ use crate::shelf::get_config_folder_name;
 use super::Book;
 
 use std::{
-    fs::{ File ,create_dir_all },
-    io::{ Read, BufReader },
     cmp::Ordering,
     collections::HashMap,
+    fs::{create_dir_all, File},
+    io::{BufReader, Read},
     path::PathBuf,
 };
 
 /// Gets the current tauri context.
 /// Im not sure how else to get the tauri config file.
-pub fn current_context() -> Config{
+pub fn current_context() -> Config {
     return generate_context!().config().clone();
 }
 /// Removes special charectars from a given string and returns it
@@ -40,14 +36,21 @@ pub fn sanitize_windows_filename(filename: String) -> String {
 
     let sanitized: String = filename
         .chars()
-        .map(|c| if disallowed_chars.contains(&c) { '_' } else { c })
+        .map(|c| {
+            if disallowed_chars.contains(&c) {
+                '_'
+            } else {
+                c
+            }
+        })
         .collect();
 
     sanitized
 }
 
 pub fn get_config_dir() -> PathBuf {
-    let mut full_config_path = app_config_dir(&current_context()).expect("Failed to get config directory");
+    let mut full_config_path =
+        app_config_dir(&current_context()).expect("Failed to get config directory");
     full_config_path.push(get_config_folder_name());
 
     if let Err(err) = create_dir_all(&full_config_path) {
@@ -58,7 +61,7 @@ pub fn get_config_dir() -> PathBuf {
 }
 
 pub fn get_cache_dir() -> PathBuf {
-    let mut cache_dir = app_cache_dir( &current_context()).expect("Failed to get cache directory");
+    let mut cache_dir = app_cache_dir(&current_context()).expect("Failed to get cache directory");
     cache_dir.push("cache");
     if let Err(err) = create_dir_all(&cache_dir) {
         eprintln!("Error creating cache directory: {:?}", err);
@@ -85,7 +88,8 @@ pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
         }
     };
 
-    file.read_to_end(&mut buffer).expect("There was an issue with the buffer");
+    file.read_to_end(&mut buffer)
+        .expect("There was an issue with the buffer");
 
     // Encode the file data as base64
     let base64_data = general_purpose::STANDARD.encode(&buffer);
@@ -128,7 +132,15 @@ pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<us
         }
         Some(unwrapped_low)
     } else {
-        Some(dataset.len())
+        let index = dataset.binary_search_by_key(&&*title, |book| &*book.title);
+
+        match index {
+            Ok(index) => Some(index), // The exact title was found
+            Err(index) => {
+                // The title was not found, and index represents the position where it should be inserted
+                Some(index)
+            }
+        }
     }
 }
 
@@ -184,12 +196,12 @@ pub fn check_epub_resource(
     key_regex: Regex,
     mime_regex: Regex,
     epub_resources: &HashMap<String, (std::path::PathBuf, String)>,
-    doc: &mut EpubDoc<BufReader<File>>
+    doc: &mut EpubDoc<BufReader<File>>,
 ) -> Option<String> {
     epub_resources
         .keys()
-        .find(
-            |key| key_regex.is_match(key) && mime_regex.is_match(&doc.get_resource(key).unwrap().1)
-        )
+        .find(|key| {
+            key_regex.is_match(key) && mime_regex.is_match(&doc.get_resource(key).unwrap().1)
+        })
         .map(|key| key.to_owned())
 }

@@ -25,12 +25,12 @@ pub mod bookio;
 pub mod util;
 
 /// This is used for organization
-struct BookCache<'a> {
-    books: Vec<Book<'a>>,
+struct BookCache {
+    books: Vec<Book>,
     json_path: String,
 }
 
-impl BookCache<'_> {
+impl BookCache {
     /// Used to update the location of the book_cache.json file
     fn update_path(&mut self, new_json_path: String) {
         self.json_path = new_json_path;
@@ -48,21 +48,21 @@ static mut BOOK_JSON: BookCache = BookCache {
 
 /// Used for handling books on the front end
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Book<'a> {
-    cover_location: &'a str,
-    book_location: &'a str,
-    title: &'a str,
+pub struct Book {
+    cover_location: String,
+    book_location: String,
+    title: String,
 }
 
-impl<'a> Book<'a> {
-    fn create_book<P: AsRef<Path>>(book_location: P, title: String) -> Book<'a> {
+impl Book {
+    fn create_book<P: AsRef<Path>>(book_location: P, title: String) -> Book {
         Book {
-            cover_location: &create_cover(book_location.as_ref())
+            cover_location: create_cover(book_location.as_ref())
                 .unwrap()
                 .to_string_lossy()
                 .to_string(),
-            book_location: book_location.as_ref().to_str().unwrap(),
-            title: title.as_str(),
+            book_location: book_location.as_ref().to_string_lossy().to_string(),
+            title,
         }
     }
 }
@@ -73,7 +73,7 @@ impl<'a> Book<'a> {
 /// * `title` - The title of the book to load
 ///
 #[tauri::command]
-pub fn load_book(title: String) -> Option<Book<'static>> {
+pub fn load_book(title: String) -> Option<Book> {
     unsafe {
         let book_cache: &String = &BOOK_JSON.json_path;
 
@@ -89,7 +89,7 @@ pub fn load_book(title: String) -> Option<Book<'static>> {
                 Err(_) => Vec::new(),
             });
 
-            let books = BOOK_JSON.books;
+            let books = &BOOK_JSON.books;
             if let Some(book_index) = chunk_binary_search_index_load(&books, &title) {
                 if let Some(book) = books.get(book_index) {
                     // Accessing the book at the specified index
@@ -151,21 +151,22 @@ fn find_cover(mut doc: EpubDoc<BufReader<File>>, cover_path: &PathBuf) -> Result
 /// * `book_directory` - The directory of the book
 ///
 fn create_cover<P: AsRef<Path>>(book_directory: P) -> Result<PathBuf, String> {
+    //Handling scenarios where the ebook cant be found by throwing up an error,
+    //I should really make this and alternative path and not bother creating a key in the book_collection file
     let mut doc =
         EpubDoc::new(book_directory).map_err(|err| format!("Error opening EpubDoc: {}", err))?;
 
     let epub_resources = doc.resources.clone();
 
     //Base filename off the books title
-
     let cover_path = &get_cache_dir().join(sanitize_windows_filename(format!(
         "{}.jpg",
         doc.mdata("title").unwrap()
     )));
 
     //The below get_cover method only looks for a certain structure of cover image
-    if doc.get_cover().is_some() {
-        if let Err(err) = write_cover_image(doc.get_cover(), cover_path) {
+    if let Some(cover_data) =  doc.get_cover(){
+        if let Err(err) = write_cover_image(Some(cover_data), cover_path) {
             return Ok(err.to_path_buf());
         }
     } else {
