@@ -49,18 +49,21 @@ static mut BOOK_JSON: BookCache = BookCache {
 /// Used for handling books on the front end
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Book {
-    cover_location: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cover_location: Option<String>,
     book_location: String,
     title: String,
 }
 
 impl Book {
     fn create_book<P: AsRef<Path>>(book_location: P, title: String) -> Book {
+        let cover_location = match create_cover(book_location.as_ref()) {
+            Ok(cover_loc) => Some(cover_loc.to_string_lossy().to_string()),
+            Err(_) => None,
+        };
+
         Book {
-            cover_location: create_cover(book_location.as_ref())
-                .unwrap()
-                .to_string_lossy()
-                .to_string(),
+            cover_location,
             book_location: book_location.as_ref().to_string_lossy().to_string(),
             title,
         }
@@ -170,10 +173,14 @@ fn create_cover<P: AsRef<Path>>(book_directory: P) -> Result<PathBuf, String> {
 
     //The below get_cover method only looks for a certain structure of cover image
     if let Some(cover_data) =  doc.get_cover(){
+        println!("THere was a cover id");
+
         if let Err(err) = write_cover_image(Some(cover_data), cover_image_path) {
+
             return Ok(err.to_path_buf());
         }
     } else {
+
         //Look for the cover_id in the epub, we are just looking for any property containing the word cover
         //This is because EpubDoc looks for an exact string, and some epubs dont contain it
         // let mimetype = r"image/jpeg";
@@ -186,10 +193,16 @@ fn create_cover<P: AsRef<Path>>(book_directory: P) -> Result<PathBuf, String> {
             let cover: Option<(Vec<u8>, String)> = doc.get_resource(&cover_id);
 
             if let Err(err) = write_cover_image(cover, cover_image_path) {
+
                 return Ok(err.to_path_buf());
             }
         } else if let Err(err) = find_cover(doc, cover_image_path) {
+
             return Ok(err);
+        }else{
+            println!("THere was no cover");
+            println!("THere was no else if cover {:?}",cover_image_path);
+            return Err("".to_string());
         }
     }
 
