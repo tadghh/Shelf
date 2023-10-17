@@ -106,7 +106,6 @@ pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
 ///
 pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<usize> {
     let title = key.to_string();
-    //handel lower case
     let low = dataset.iter().position(|b| b.title[..1] == title[..1]);
 
     if let Some(index) = low {
@@ -133,11 +132,10 @@ pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<us
         Some(unwrapped_low)
     } else {
         let index = dataset.binary_search_by_key(&&*title, |book| &*book.title);
-
+        println!("There was no index");
         match index {
             Ok(index) => Some(index), // The exact title was found
             Err(index) => {
-                // The title was not found, and index represents the position where it should be inserted
                 Some(index)
             }
         }

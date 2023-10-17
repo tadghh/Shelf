@@ -1,5 +1,5 @@
 use std::{
-    fs::{File, OpenOptions},
+    fs::{File, OpenOptions, create_dir_all},
     io::BufReader,
     path::{Path, PathBuf},
 };
@@ -159,14 +159,18 @@ fn create_cover<P: AsRef<Path>>(book_directory: P) -> Result<PathBuf, String> {
     let epub_resources = doc.resources.clone();
 
     //Base filename off the books title
-    let cover_path = &get_cache_dir().join(sanitize_windows_filename(format!(
+    let cover_path = &get_cache_dir().join(get_cover_image_folder_name());
+    if let Err(err) = create_dir_all(&cover_path) {
+        eprintln!("Error creating covers directory: {:?}", err);
+    }
+    let cover_image_path = &cover_path.join(sanitize_windows_filename(format!(
         "{}.jpg",
         doc.mdata("title").unwrap()
     )));
 
     //The below get_cover method only looks for a certain structure of cover image
     if let Some(cover_data) =  doc.get_cover(){
-        if let Err(err) = write_cover_image(Some(cover_data), cover_path) {
+        if let Err(err) = write_cover_image(Some(cover_data), cover_image_path) {
             return Ok(err.to_path_buf());
         }
     } else {
@@ -181,13 +185,13 @@ fn create_cover<P: AsRef<Path>>(book_directory: P) -> Result<PathBuf, String> {
         ) {
             let cover: Option<(Vec<u8>, String)> = doc.get_resource(&cover_id);
 
-            if let Err(err) = write_cover_image(cover, cover_path) {
+            if let Err(err) = write_cover_image(cover, cover_image_path) {
                 return Ok(err.to_path_buf());
             }
-        } else if let Err(err) = find_cover(doc, cover_path) {
+        } else if let Err(err) = find_cover(doc, cover_image_path) {
             return Ok(err);
         }
     }
 
-    Ok(cover_path.to_path_buf())
+    Ok(cover_image_path.to_path_buf())
 }

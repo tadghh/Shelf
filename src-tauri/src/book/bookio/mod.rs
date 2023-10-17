@@ -142,26 +142,22 @@ pub fn initialize_books() -> Option<Vec<Book>> {
                         .mdata("title")
                     {
                         if let Some(index) = chunk_binary_search_index(&book_collection, &title) {
-                            //println!("added {:?}", index_offset);
                             return Some((Book::create_book(epub_path, title), index));
                         }else{
                             return None
                         }
+                    }else {
+                       return None
                     }
-                    None
+
                 })
                 .collect::<Vec<_>>();
-            println!("new book amount  {:?}", new_books.len());
             if new_books.len() != 0 {
                 let mut index_offset = 0;
-                //book_collection.insert(new_books.get(0).unwrap().1,new_books.get(0).unwrap().0.clone());
                 for (book, index) in new_books {
-                    println!("added {:?}", index_offset);
                     book_collection.insert(index + index_offset, book);
                     index_offset += 1;
                 }
-                println!("{:?}", book_collection);
-                //book_collection.sort_by(|a, b| a.title.cmp(&b.title));
                 file_changes = true;
             }
         }
