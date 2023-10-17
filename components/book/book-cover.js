@@ -9,7 +9,9 @@ export default function BookCover({ book }) {
   const [coverUrl, setCoverUrl] = useState();
 
   useEffect(() => {
-    setCoverUrl(convertFileSrc(book.cover_location));
+    setCoverUrl(
+      book.cover_location ? convertFileSrc(book.cover_location) : "error.jpg",
+    );
   }, []);
 
   return (
@@ -30,9 +32,6 @@ export default function BookCover({ book }) {
               object-fit="cover"
               height={500}
               src={coverUrl}
-              onError={(e) => {
-                e.target.src = "error.jpg";
-              }}
             />
           </div>
         ) : (
