@@ -90,12 +90,12 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             return None;
         }
     };
+    println!("current path {:?}",&dir);
 
     if !Path::new(&dir).exists() {
         return None;
     }
-
-    let epub_paths: Vec<PathBuf> = fs::read_dir(dir)
+    let epub_paths: Vec<PathBuf> = fs::read_dir(&dir)
         .unwrap()
         .filter_map(|entry| {
             let path = entry.unwrap().path();
@@ -135,8 +135,8 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         };
 
         let current_length = book_collection.len();
+        println!("Json amount {:?} and directory amount {:?} current path {:?}", current_length, epub_amount,dir);
 
-        if current_length != epub_amount {
             let new_books: Vec<(Book, usize)> = epub_paths
                 .par_iter()
                 .filter_map(|epub_path| {
@@ -162,9 +162,10 @@ pub fn initialize_books() -> Option<Vec<Book>> {
                     book_collection.insert(index + index_offset, book);
                     index_offset += 1;
                 }
+                book_collection.sort_by(|a, b| a.title.cmp(&b.title));
                 file_changes = true;
             }
-        }
+
     } else {
         book_collection = create_book_collection(&epub_paths);
         file_changes = true;

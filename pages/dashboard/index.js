@@ -9,7 +9,7 @@ export default function BookDashboard() {
   const [usersBooks, setUsersBooks] = useState([]);
   const [directoryStatus, setDirectoryStatus] = useState(false);
   const [directoryChecked, setDirectoryChecked] = useState(false);
-  const [imagesStatus, setImagesStatus] = useState();
+  const [imagesStatus, setImagesStatus] = useState(false);
 
   useEffect(() => {
     async function loadImages() {
@@ -25,14 +25,17 @@ export default function BookDashboard() {
     invoke("get_configuration_option", {
       option_name: "book_location",
     }).then((data) => {
+      setDirectoryChecked(true);
       if (isValidDirectoryPath(data)) {
-        setDirectoryStatus(data);
+        console.log(data);
+        setDirectoryStatus(isValidDirectoryPath(data));
         loadImages();
       }
-      setDirectoryChecked(true);
     });
   }, []);
-
+  useEffect(() => {
+    console.log(usersBooks);
+  }, [usersBooks]);
   if (!directoryChecked) {
     return <></>;
   }
