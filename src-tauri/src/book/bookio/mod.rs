@@ -49,16 +49,15 @@ pub fn create_book_collection(book_paths: &Vec<PathBuf>) -> Vec<Book> {
     let mut books: Vec<Book> = book_paths
         .par_iter()
         .filter_map(|book| {
-            if let Ok(curr_book) = EpubDoc::new(book){
+            if let Ok(curr_book) = EpubDoc::new(book) {
                 if let Some(title) = curr_book.mdata("title") {
                     Some(Book::create_book(book, title))
                 } else {
                     None
                 }
-            }else{
+            } else {
                 None
             }
-
         })
         .collect();
 
@@ -90,7 +89,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             return None;
         }
     };
-    println!("current path {:?}",&dir);
+    println!("current path {:?}", &dir);
 
     if !Path::new(&dir).exists() {
         return None;
@@ -135,37 +134,35 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         };
 
         let current_length = book_collection.len();
-        println!("Json amount {:?} and directory amount {:?} current path {:?}", current_length, epub_amount,dir);
 
-            let new_books: Vec<(Book, usize)> = epub_paths
-                .par_iter()
-                .filter_map(|epub_path| {
-
-                    if let Some(title) = EpubDoc::new(&epub_path)
-                        .expect("The epub path was bad")
-                        .mdata("title")
-                    {
-                        if let Some(index) = chunk_binary_search_index(&book_collection, &title) {
-                            return Some((Book::create_book(epub_path, title), index));
-                        }else{
-                            return None
-                        }
-                    }else {
-                       return None
+        //TODO: Somehow have book_collection insert into itself, save on sorting through the whole vec if changes are found
+        let new_books: Vec<(Book, usize)> = epub_paths
+            .par_iter()
+            .filter_map(|epub_path| {
+                if let Some(title) = EpubDoc::new(&epub_path)
+                    .expect("The epub path was bad")
+                    .mdata("title")
+                {
+                    if let Some(index) = chunk_binary_search_index(&book_collection, &title) {
+                        return Some((Book::create_book(epub_path, title), index));
+                    } else {
+                        return None;
                     }
-
-                })
-                .collect::<Vec<_>>();
-            if new_books.len() != 0 {
-                let mut index_offset = 0;
-                for (book, index) in new_books {
-                    book_collection.insert(index + index_offset, book);
-                    index_offset += 1;
+                } else {
+                    return None;
                 }
-                book_collection.sort_by(|a, b| a.title.cmp(&b.title));
-                file_changes = true;
-            }
+            })
+            .collect::<Vec<_>>();
 
+        if new_books.len() != 0 {
+            let mut index_offset = 0;
+            for (book, index) in new_books {
+                book_collection.insert(index + index_offset, book);
+                index_offset += 1;
+            }
+            book_collection.sort_by(|a, b| a.title.cmp(&b.title));
+            file_changes = true;
+        }
     } else {
         book_collection = create_book_collection(&epub_paths);
         file_changes = true;

@@ -173,7 +173,6 @@ fn create_cover<P: AsRef<Path>>(book_directory: P) -> Result<PathBuf, String> {
 
     //The below get_cover method only looks for a certain structure of cover image
     if let Some(cover_data) =  doc.get_cover(){
-        println!("THere was a cover id");
 
         if let Err(err) = write_cover_image(Some(cover_data), cover_image_path) {
 
@@ -200,8 +199,7 @@ fn create_cover<P: AsRef<Path>>(book_directory: P) -> Result<PathBuf, String> {
 
             return Ok(err);
         }else{
-            println!("THere was no cover");
-            println!("THere was no else if cover {:?}",cover_image_path);
+
             return Err("".to_string());
         }
     }
