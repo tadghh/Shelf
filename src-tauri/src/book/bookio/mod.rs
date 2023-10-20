@@ -43,24 +43,28 @@ pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &PathBuf) -> Res
 ///
 /// # Arguments
 ///
-/// * `items` - A vector containing the book directories
+/// * `book_paths` - A vector containing the book directories
 ///
 pub fn create_book_collection(book_paths: &Vec<PathBuf>) -> Vec<Book> {
-    let books: Vec<Book> = book_paths
+    let mut books: Vec<Book> = book_paths
         .par_iter()
         .filter_map(|book| {
-            if let Some(title) = EpubDoc::new(book).unwrap().mdata("title") {
-                Some(Book::create_book(book, title))
-            } else {
-                None // Skip this book and continue with the next one
+            if let Ok(curr_book) = EpubDoc::new(book){
+                if let Some(title) = curr_book.mdata("title") {
+                    Some(Book::create_book(book, title))
+                } else {
+                    None
+                }
+            }else{
+                None
             }
+
         })
         .collect();
 
-    let mut sorted_books = books;
-    sorted_books.sort_by(|a, b| a.title.cmp(&b.title));
+    books.sort_by(|a, b| a.title.cmp(&b.title));
 
-    sorted_books
+    books
 }
 
 /// Initializes the books and loading them from the users provided directory, if the book_cache file is missing the all epubs will be read
