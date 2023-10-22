@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::{OpenOptions, remove_file, remove_dir_all},
+    fs::{OpenOptions, remove_file, remove_dir_all, create_dir_all},
     io::{ BufRead, BufReader, Seek, SeekFrom, Write, Read, Error },
     path::{PathBuf, Path},
 };
@@ -17,7 +17,11 @@ fn get_settings_path() -> PathBuf {
     get_config_dir().join(SETTINGS_FILE_NAME)
 }
 fn get_covers_path() -> PathBuf {
-    get_cache_dir().join(COVER_IMAGE_FOLDER_NAME)
+    let covers_directory = get_cache_dir().join(COVER_IMAGE_FOLDER_NAME);
+    if let Err(err) = create_dir_all(&covers_directory) {
+        eprintln!("Error creating cover directory: {:?}", err);
+    }
+    covers_directory
 }
 
 ///Get the name of the cover image folder

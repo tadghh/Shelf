@@ -89,11 +89,11 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             return None;
         }
     };
-    println!("current path {:?}", &dir);
 
     if !Path::new(&dir).exists() {
         return None;
     }
+
     let epub_paths: Vec<PathBuf> = fs::read_dir(&dir)
         .unwrap()
         .filter_map(|entry| {
@@ -104,16 +104,6 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             }
         })
         .collect();
-
-    let epub_amount = epub_paths.len();
-
-    let mut covers_directory = get_cache_dir();
-
-    covers_directory.push(get_cover_image_folder_name());
-
-    if let Err(err) = create_dir_all(&covers_directory) {
-        eprintln!("Error creating cover directory: {:?}", err);
-    }
 
     unsafe {
         if BOOK_JSON.json_path != json_path {
@@ -133,9 +123,6 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             Err(_) => Vec::new(),
         };
 
-        let current_length = book_collection.len();
-
-        //TODO: Somehow have book_collection insert into itself, save on sorting through the whole vec if changes are found
         let mut new_books: Vec<(Book, usize)> = epub_paths
             .par_iter()
             .filter_map(|epub_path| {
@@ -155,21 +142,25 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             .collect::<Vec<_>>();
 
         //Organize the new book list then insert
-        //Keep indexs the same just rotate the book
-        //Indexs should all be the same no?
-        new_books.sort_by(|a, b: &(Book, usize)| a.0.title.cmp(&b.0.title));
-        if new_books.len() != 0 {
+        let new_book_count = new_books.len();
+        if new_book_count != 0 {
+            new_books.sort_by(|a, b: &(Book, usize)| a.0.title.cmp(&b.0.title));
             let mut index_offset = 0;
+
             for (book, index) in new_books {
                 book_collection.insert(index + index_offset, book);
                 index_offset += 1;
             }
-            //book_collection.sort_by(|a, b| a.title.cmp(&b.title));
+
             file_changes = true;
+            println!("Sorted and inserted {:?} new books into a collection of {:?} books in: {} ms",new_book_count ,book_collection.len() - new_book_count, start_time.elapsed().as_millis());
+
         }
+
     } else {
         book_collection = create_book_collection(&epub_paths);
         file_changes = true;
+        println!("Created the initial collection in: {} ms", start_time.elapsed().as_millis());
     }
 
     if file_changes {
@@ -178,7 +169,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         serde_json::to_writer_pretty(file, &book_collection).expect("The book JSON should exist");
     }
 
-    println!("Execution time: {} ms", start_time.elapsed().as_millis());
+
 
     Some(book_collection)
 }
