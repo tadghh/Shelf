@@ -136,7 +136,7 @@ pub fn initialize_books() -> Option<Vec<Book>> {
         let current_length = book_collection.len();
 
         //TODO: Somehow have book_collection insert into itself, save on sorting through the whole vec if changes are found
-        let new_books: Vec<(Book, usize)> = epub_paths
+        let mut new_books: Vec<(Book, usize)> = epub_paths
             .par_iter()
             .filter_map(|epub_path| {
                 if let Some(title) = EpubDoc::new(&epub_path)
@@ -153,16 +153,18 @@ pub fn initialize_books() -> Option<Vec<Book>> {
                 }
             })
             .collect::<Vec<_>>();
+
         //Organize the new book list then insert
         //Keep indexs the same just rotate the book
         //Indexs should all be the same no?
+        new_books.sort_by(|a, b: &(Book, usize)| a.0.title.cmp(&b.0.title));
         if new_books.len() != 0 {
             let mut index_offset = 0;
             for (book, index) in new_books {
                 book_collection.insert(index + index_offset, book);
                 index_offset += 1;
             }
-            book_collection.sort_by(|a, b| a.title.cmp(&b.title));
+            //book_collection.sort_by(|a, b| a.title.cmp(&b.title));
             file_changes = true;
         }
     } else {
