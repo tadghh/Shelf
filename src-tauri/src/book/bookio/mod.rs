@@ -153,7 +153,9 @@ pub fn initialize_books() -> Option<Vec<Book>> {
                 }
             })
             .collect::<Vec<_>>();
-
+        //Organize the new book list then insert
+        //Keep indexs the same just rotate the book
+        //Indexs should all be the same no?
         if new_books.len() != 0 {
             let mut index_offset = 0;
             for (book, index) in new_books {
