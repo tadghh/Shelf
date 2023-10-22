@@ -70,8 +70,6 @@ pub fn create_book_collection(book_paths: &Vec<PathBuf>) -> Vec<Book> {
 /// Otherwise only books missing from the Static vector will be initialized
 #[tauri::command]
 pub fn initialize_books() -> Option<Vec<Book>> {
-    let start_time = Instant::now();
-
     let mut file_changes = false;
 
     let mut book_collection: Vec<Book>;
@@ -110,6 +108,8 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             BOOK_JSON.update_path(json_path.clone());
         }
     }
+
+    let start_time = Instant::now();
 
     if Path::new(&json_path).exists() {
         let file = OpenOptions::new()
@@ -153,14 +153,14 @@ pub fn initialize_books() -> Option<Vec<Book>> {
             }
 
             file_changes = true;
-            println!("Sorted and inserted {:?} new books into a collection of {:?} books in: {} ms",new_book_count ,book_collection.len() - new_book_count, start_time.elapsed().as_millis());
+            println!("Sorted and inserted {:?} new books into a collection of {:?} books in: {} ms, average/book {:?} ms",new_book_count ,book_collection.len() - new_book_count, start_time.elapsed().as_millis(), (start_time.elapsed().as_millis() as usize)/(book_collection.len() - new_book_count));
 
         }
 
     } else {
         book_collection = create_book_collection(&epub_paths);
         file_changes = true;
-        println!("Created the initial collection in: {} ms", start_time.elapsed().as_millis());
+        println!("Created the initial collection of {:?} books in: {} ms, average/book {:?} ms",book_collection.len(), start_time.elapsed().as_millis(),(start_time.elapsed().as_millis() as usize)/(book_collection.len()));
     }
 
     if file_changes {
