@@ -13,16 +13,6 @@ static COVER_IMAGE_FOLDER_NAME: &str = "cover_cache";
 static CONFIG_FOLDER_NAME: &str = "config";
 static mut SETTINGS_MAP: Option<HashMap<String, String>> = None;
 
-fn get_settings_path() -> PathBuf {
-    get_config_dir().join(SETTINGS_FILE_NAME)
-}
-fn get_covers_path() -> PathBuf {
-    let covers_directory = get_cache_dir().join(COVER_IMAGE_FOLDER_NAME);
-    if let Err(err) = create_dir_all(&covers_directory) {
-        eprintln!("Error creating cover directory: {:?}", err);
-    }
-    covers_directory
-}
 
 ///Get the name of the cover image folder
 pub fn get_cover_image_folder_name() -> &'static str {
@@ -33,6 +23,7 @@ pub fn get_cover_image_folder_name() -> &'static str {
 pub fn get_cache_file_name() -> &'static str {
     CACHE_FILE_NAME
 }
+
 ///Get the book cache file name
 pub fn get_config_folder_name() -> &'static str {
     CONFIG_FOLDER_NAME
@@ -62,6 +53,35 @@ pub fn shelf_settings_values() -> HashMap<String, (String, String)> {
         .collect()
 }
 
+fn get_settings_path() -> PathBuf {
+    let settings_file_location = get_config_dir().join(SETTINGS_FILE_NAME);
+
+    match Path::new(&settings_file_location).exists(){
+        true => return settings_file_location,
+        false => {
+            if let Err(default_settings_error) = create_default_settings(){
+                eprintln!("Error creating default settings: {:?}", default_settings_error);
+                if let Err(err) = create_dir_all(&get_config_dir().join(SETTINGS_FILE_NAME)) {
+
+                    eprintln!("Error creating settings directory: {:?}", err);
+                }
+            }
+
+            return settings_file_location
+        }
+    }
+
+}
+
+fn get_covers_path() -> PathBuf {
+    let covers_directory = get_cache_dir().join(COVER_IMAGE_FOLDER_NAME);
+    if let Err(err) = create_dir_all(&covers_directory) {
+        eprintln!("Error creating cover directory: {:?}", err);
+    }
+
+    covers_directory
+}
+
 /// Creates a settings file and fills it with mostly valid default values.
 fn create_default_settings() -> Result<(), Error> {
     let mut file = OpenOptions::new()
@@ -80,13 +100,11 @@ fn create_default_settings() -> Result<(), Error> {
     }
     Ok(())
 }
+
 /// To force overwrite users settings in memory
 fn load_settings(){
     let settings_path = get_settings_path();
-    let bro = Path::new(&settings_path);
-    if !bro.exists() {
-        let _ = create_default_settings();
-    }
+
     let file = match
         OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
     {

@@ -1,6 +1,6 @@
 use epub::doc::EpubDoc;
 use std::{
-    fs::{self, create_dir_all, File, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::{BufReader, Write},
     path::{Path, PathBuf},
     time::Instant,
@@ -11,7 +11,7 @@ use crate::{
         util::{chunk_binary_search_index, get_cache_dir},
         Book, BOOK_JSON,
     },
-    shelf::{get_cache_file_name, get_configuration_option, get_cover_image_folder_name},
+    shelf::{get_cache_file_name, get_configuration_option},
 };
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 
