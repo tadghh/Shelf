@@ -40,7 +40,7 @@ The goal behind this project was to see what I can learn with NextJS and Rust; i
 
 
 ## Preview (v0.1.1-alpha)
-
+You can find epubs [here](https://archive.org/details/1991-08-compute-magazine/page/n159/mode/2up)
 
 <div align="center">
 
