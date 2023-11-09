@@ -106,19 +106,24 @@ pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
 ///
 pub fn chunk_binary_search_index(dataset: &Vec<Book>, title: &String) -> Option<usize> {
 
-    let low = dataset.iter().position(|b| b.title[..1] == title[..1]);
+    //let low = ;
 
-    if let Some(index) = low {
+    //find index for the first occurance of the first letter in the book title
+    if let Some(index) = dataset.iter().position(|b| b.title[..1] == title[..1]) {
+
+        //find the last index of the first char of the book title
         let mut high = dataset
             .iter()
             .rposition(|b| b.title[..1] == title[..1])
             .unwrap();
+
         let mut unwrapped_low = index;
+
         while unwrapped_low <= high {
             let mid = (unwrapped_low + high) / 2;
             match dataset[mid].title.cmp(&title) {
                 Ordering::Equal => {
-                    //return Some(mid);
+                    //We found the book
                     return None;
                 }
                 Ordering::Less => {
@@ -129,17 +134,26 @@ pub fn chunk_binary_search_index(dataset: &Vec<Book>, title: &String) -> Option<
                 }
             }
         }
-        Some(unwrapped_low)
-    } else {
-        let index = dataset.binary_search_by_key(&title, |book| &book.title);
-        println!("There was no index");
-        match index {
-            Ok(index) => Some(index), // The exact title was found
-            Err(index) => {
-                Some(index)
-            }
-        }
+        return Some(unwrapped_low)
+    } else if let Err(index) = dataset.binary_search_by_key(&title, |book| &book.title){
+        //We are only in this branch if we know there is no index for the first letter
+        //If we have an err from the dataset the title wasnt found (hurray)
+
+        return Some(index)
+        //This letter doesnt exist in the dataset yet
+        // let index = dataset.binary_search_by_key(&title, |book| &book.title);
+
+        // //If index is "ok" the book exists already so we return None so it wont be added
+        // //Otherwise we return the index where the element could be inserted while keeping the sort.
+        // match index {
+        //     Ok(_) => None,
+        //     Err(index) => {
+        //         println!("There was no index");
+        //         Some(index)
+        //     }
+        // }
     }
+    None
 }
 
 /// Finds a chunk in the dataset that starts with the same letter as the key, returning the found index
