@@ -1,15 +1,13 @@
 {
-	"files.associations": {
-		"*.css": "tailwindcss"
-	},
-	"editor.codeActionsOnSave": {
-		"source.fixAll.eslint": true
-	},
-	"eslint.validate": [
-		"javascript"
-	],
-	"rust-analyzer.showUnlinkedFileNotification": false,
-	"[javascript]": {
-		"editor.defaultFormatter": "esbenp.prettier-vscode"
-	}
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.validate": ["javascript"],
+  "rust-analyzer.showUnlinkedFileNotification": false,
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
 }
