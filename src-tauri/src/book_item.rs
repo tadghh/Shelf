@@ -45,6 +45,24 @@ pub struct Book {
     book_location: String,
     title: String,
 }
+impl Book {
+    pub fn new(cover_location: String, book_location: String, title: String) -> Book {
+        Book {
+            book_location,
+            cover_location,
+            title,
+        }
+    }
+    pub fn get_title(&self) -> &String {
+        &self.title
+    }
+    pub fn get_cover_location(&self) -> &String {
+        &self.cover_location
+    }
+    pub fn get_book_location(&self) -> &String {
+        &self.book_location
+    }
+}
 
 /// Looks for the books url inside the json file, returning its path
 ///

@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::book_item::util::{get_cache_dir, get_config_dir};
+use crate::book::util::{get_cache_dir, get_config_dir};
 
 static CACHE_FILE_NAME: &str = "book_cache.json";
 static SETTINGS_FILE_NAME: &str = "shelf_settings.conf";

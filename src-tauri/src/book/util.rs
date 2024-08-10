@@ -7,9 +7,7 @@ use tauri::{
     generate_context, Config,
 };
 
-use crate::shelf::get_config_folder_name;
-
-use super::Book;
+use crate::{book_item::Book, shelf::get_config_folder_name};
 
 use std::{
     cmp::Ordering,
