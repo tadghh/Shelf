@@ -17,7 +17,7 @@ use xmltree::Element;
 use crate::xml::extract_image_source;
 
 /// This is used for organization
-struct BookCache {
+pub struct BookCache {
     books: Vec<Book>,
     json_path: String,
 }
@@ -31,9 +31,18 @@ impl BookCache {
     fn update_books(&mut self, new_books: Vec<Book>) {
         self.books = new_books;
     }
+    pub fn get_json_path(&self) -> &String {
+        &self.json_path
+    }
+    pub fn get_books(&self) -> &Vec<Book> {
+        &self.books
+    }
+    pub fn update_json_path(&mut self, json_path: String) {
+        self.json_path = json_path.to_string();
+    }
 }
 
-static mut BOOK_JSON: BookCache = BookCache {
+pub static mut BOOK_JSON: BookCache = BookCache {
     books: Vec::new(),
     json_path: String::new(),
 };
@@ -149,7 +158,7 @@ fn find_cover(mut doc: EpubDoc<BufReader<File>>, cover_path: &PathBuf) -> Result
 /// * `book_directory` - The directory of the book
 /// * `write_directory` - The path to write the cover data too
 ///
-fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result<PathBuf, String> {
+pub fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result<PathBuf, String> {
     let mut doc =
         EpubDoc::new(book_directory).map_err(|err| format!("Error opening EpubDoc: {}", err))?;
 

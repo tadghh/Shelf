@@ -2,18 +2,14 @@
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
 )]
+use app::*;
 
 use app::{
-    book_item::{
-        __cmd__load_book,
-        bookio::{__cmd__initialize_books, initialize_books},
-        load_book,
-        util::{__cmd__base64_encode_file, base64_encode_file},
-    },
+    book::{bookio::initialize_books, util::base64_encode_file},
+    book_item::load_book,
     shelf::{
-        __cmd__change_configuration_option, __cmd__get_configuration_option,
-        __cmd__reset_configuration, __cmd__shelf_settings_values, change_configuration_option,
-        get_configuration_option, reset_configuration, shelf_settings_values,
+        change_configuration_option, get_configuration_option, reset_configuration,
+        shelf_settings_values,
     },
 };
 

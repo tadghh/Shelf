@@ -3,19 +3,12 @@ use std::{
     fs::{self, create_dir_all, File, OpenOptions},
     io::{BufReader, Write},
     path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc, Mutex,
-    },
     time::Instant,
 };
 
 use crate::{
-    book_item::{
-        create_cover,
-        util::{chunk_binary_search_index, get_cache_dir},
-        Book, BOOK_JSON,
-    },
+    book::util::{chunk_binary_search_index, get_cache_dir},
+    book_item::{create_cover, Book, BOOK_JSON},
     shelf::{get_cache_file_name, get_configuration_option, get_cover_image_folder_name},
 };
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
@@ -58,11 +51,11 @@ pub fn create_book_vec(items: &Vec<String>, write_directory: &PathBuf) -> Vec<Bo
             let title = EpubDoc::new(item).unwrap().mdata("title").unwrap();
 
             if let Ok(cover_location) = create_cover(item.to_string(), write_directory) {
-                let new_book = Book {
-                    cover_location: cover_location.to_string_lossy().to_string(),
-                    book_location: item.replace('\\', "/"),
+                let new_book = Book::new(
+                    cover_location.to_string_lossy().to_string(),
+                    item.replace('\\', "/"),
                     title,
-                };
+                );
                 Some(new_book)
             } else {
                 None // Skip this book and continue with the next one
@@ -71,7 +64,7 @@ pub fn create_book_vec(items: &Vec<String>, write_directory: &PathBuf) -> Vec<Bo
         .collect();
 
     let mut sorted_books = books;
-    sorted_books.sort_by(|a, b| a.title.cmp(&b.title));
+    sorted_books.sort_by(|a, b| a.get_title().cmp(&b.get_title()));
 
     sorted_books
 }
@@ -128,8 +121,8 @@ pub fn initialize_books() -> Option<Vec<Book>> {
     }
 
     unsafe {
-        if BOOK_JSON.json_path != json_path {
-            BOOK_JSON.update_path(json_path.clone());
+        if BOOK_JSON.get_json_path() != &json_path {
+            BOOK_JSON.update_json_path(json_path.clone());
         }
     }
 
@@ -158,17 +151,14 @@ pub fn initialize_books() -> Option<Vec<Book>> {
                         .mdata("title")
                     {
                         if let Some(index) = chunk_binary_search_index(&book_json, &title) {
-                            let new_book = Book {
-                                cover_location: create_cover(
-                                    item_normalized.to_string(),
-                                    &covers_directory,
-                                )
-                                .unwrap()
-                                .to_string_lossy()
-                                .to_string(),
-                                book_location: item_normalized,
+                            let new_book = Book::new(
+                                create_cover(item_normalized.to_string(), &covers_directory)
+                                    .unwrap()
+                                    .to_string_lossy()
+                                    .to_string(),
+                                item_normalized,
                                 title,
-                            };
+                            );
 
                             return Some((new_book, index));
                         }

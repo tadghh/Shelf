@@ -105,17 +105,19 @@ pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
 pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<usize> {
     let title = key.to_string();
     //handel lower case
-    let low = dataset.iter().position(|b| b.title[..1] == title[..1]);
+    let low = dataset
+        .iter()
+        .position(|b| b.get_title()[..1] == title[..1]);
 
     if let Some(index) = low {
         let mut high = dataset
             .iter()
-            .rposition(|b| b.title[..1] == title[..1])
+            .rposition(|b| b.get_title()[..1] == title[..1])
             .unwrap();
         let mut unwrapped_low = index;
         while unwrapped_low <= high {
             let mid = (unwrapped_low + high) / 2;
-            match dataset[mid].title.cmp(&title) {
+            match dataset[mid].get_title().cmp(&title) {
                 Ordering::Equal => {
                     //return Some(mid);
                     return None;
@@ -145,17 +147,19 @@ pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<us
 pub fn chunk_binary_search_index_load(dataset: &[Book], key: &String) -> Option<usize> {
     let title = key.to_string();
     //handel lower case
-    let low = dataset.iter().position(|b| b.title[..1] == title[..1]);
+    let low = dataset
+        .iter()
+        .position(|b| b.get_title()[..1] == title[..1]);
 
     if let Some(index) = low {
         let mut high = dataset
             .iter()
-            .rposition(|b| b.title[..1] == title[..1])
+            .rposition(|b| b.get_title()[..1] == title[..1])
             .unwrap();
         let mut unwrapped_low = index;
         while unwrapped_low <= high {
             let mid = (unwrapped_low + high) / 2;
-            match dataset[mid].title.cmp(&title) {
+            match dataset[mid].get_title().cmp(&title) {
                 Ordering::Equal => {
                     return Some(mid);
                 }
