@@ -41,8 +41,7 @@ impl BookCache {
         self.json_path = json_path.to_string();
     }
 }
-
-pub static mut BOOK_JSON: BookCache = BookCache {
+static mut BOOK_JSON: BookCache = BookCache {
     books: Vec::new(),
     json_path: String::new(),
 };
@@ -173,6 +172,7 @@ pub fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result
 
     //The below get_cover method only looks for a certain structure of cover image
     if doc.get_cover().is_some() {
+        //TODO wth is this
         if let Err(err) = write_cover_image(doc.get_cover(), cover_path) {
             return Ok(err.to_path_buf());
         }

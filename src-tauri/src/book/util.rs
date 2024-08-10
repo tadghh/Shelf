@@ -7,7 +7,9 @@ use tauri::{
     generate_context, Config,
 };
 
-use crate::{book_item::Book, shelf::get_config_folder_name};
+use crate::shelf::get_config_folder_name;
+
+use super::Book;
 
 use std::{
     cmp::Ordering,
@@ -30,7 +32,7 @@ pub fn current_context() -> Config {
 /// * `filename` - The filename to sanitize
 ///
 pub fn sanitize_windows_filename(filename: String) -> String {
-    let disallowed_chars: &[char] = &['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+    let disallowed_chars = vec!['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
 
     let sanitized: String = filename
         .chars()
@@ -76,6 +78,7 @@ pub fn get_cache_dir() -> PathBuf {
 ///
 #[tauri::command(rename_all = "snake_case")]
 pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
+    //TODO Archive this
     let mut buffer = Vec::new();
 
     //Refactor this
@@ -105,19 +108,17 @@ pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
 pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<usize> {
     let title = key.to_string();
     //handel lower case
-    let low = dataset
-        .iter()
-        .position(|b| b.get_title()[..1] == title[..1]);
+    let low = dataset.iter().position(|b| b.title[..1] == title[..1]);
 
     if let Some(index) = low {
         let mut high = dataset
             .iter()
-            .rposition(|b| b.get_title()[..1] == title[..1])
+            .rposition(|b| b.title[..1] == title[..1])
             .unwrap();
         let mut unwrapped_low = index;
         while unwrapped_low <= high {
             let mid = (unwrapped_low + high) / 2;
-            match dataset[mid].get_title().cmp(&title) {
+            match dataset[mid].title.cmp(&title) {
                 Ordering::Equal => {
                     //return Some(mid);
                     return None;
@@ -147,19 +148,17 @@ pub fn chunk_binary_search_index(dataset: &Vec<Book>, key: &String) -> Option<us
 pub fn chunk_binary_search_index_load(dataset: &[Book], key: &String) -> Option<usize> {
     let title = key.to_string();
     //handel lower case
-    let low = dataset
-        .iter()
-        .position(|b| b.get_title()[..1] == title[..1]);
+    let low = dataset.iter().position(|b| b.title[..1] == title[..1]);
 
     if let Some(index) = low {
         let mut high = dataset
             .iter()
-            .rposition(|b| b.get_title()[..1] == title[..1])
+            .rposition(|b| b.title[..1] == title[..1])
             .unwrap();
         let mut unwrapped_low = index;
         while unwrapped_low <= high {
             let mid = (unwrapped_low + high) / 2;
-            match dataset[mid].get_title().cmp(&title) {
+            match dataset[mid].title.cmp(&title) {
                 Ordering::Equal => {
                     return Some(mid);
                 }

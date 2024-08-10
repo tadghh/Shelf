@@ -149,7 +149,7 @@ pub fn get_configuration_option(option_name: String) -> Option<String> {
 
     settings_value
 }
-
+#[allow(static_mut_refs)]
 /// Changes the value of a settings item
 ///
 /// # Arguments
@@ -157,6 +157,8 @@ pub fn get_configuration_option(option_name: String) -> Option<String> {
 /// * `option_name` - The setting to change
 /// * `value` - The new value to set
 ///
+/// #[warn(static_mut_refs)]
+
 #[tauri::command(rename_all = "snake_case")]
 pub fn change_configuration_option(option_name: String, value: String) {
     load_settings_into_memory();
