@@ -1,11 +1,11 @@
 use std::{
     collections::HashMap,
-    fs::{OpenOptions, remove_file, remove_dir_all},
-    io::{ BufRead, BufReader, Seek, SeekFrom, Write, Read, Error },
-    path::{PathBuf, Path},
+    fs::{remove_dir_all, remove_file, OpenOptions},
+    io::{BufRead, BufReader, Error, Read, Seek, SeekFrom, Write},
+    path::{Path, PathBuf},
 };
 
-use crate::book::util::{get_config_dir, get_cache_dir};
+use crate::book_item::util::{get_cache_dir, get_config_dir};
 
 static CACHE_FILE_NAME: &str = "book_cache.json";
 static SETTINGS_FILE_NAME: &str = "shelf_settings.conf";
@@ -49,12 +49,7 @@ pub fn shelf_settings_values() -> HashMap<String, (String, String)> {
 
     setting_consts
         .into_iter()
-        .map(|(k, v)| {
-            (
-                k.clone(),
-                (k.to_lowercase(), v.to_string()),
-            )
-        })
+        .map(|(k, v)| (k.clone(), (k.to_lowercase(), v.to_string())))
         .collect()
 }
 
@@ -77,14 +72,17 @@ fn create_default_settings() -> Result<(), Error> {
     Ok(())
 }
 /// To force overwrite users settings in memory
-fn load_settings(){
+fn load_settings() {
     let settings_path = get_settings_path();
     let bro = Path::new(&settings_path);
     if !bro.exists() {
         let _ = create_default_settings();
     }
-    let file = match
-        OpenOptions::new().read(true).write(true).create(true).open(&settings_path)
+    let file = match OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&settings_path)
     {
         Ok(file) => file,
         Err(e) => {
@@ -143,7 +141,11 @@ pub fn restore_default_settings() {
 pub fn get_configuration_option(option_name: String) -> Option<String> {
     load_settings_into_memory();
 
-    let settings_value = unsafe { SETTINGS_MAP.as_ref().and_then(|map| map.get(&option_name).cloned()) };
+    let settings_value = unsafe {
+        SETTINGS_MAP
+            .as_ref()
+            .and_then(|map| map.get(&option_name).cloned())
+    };
 
     settings_value
 }
@@ -208,22 +210,19 @@ pub fn change_configuration_option(option_name: String, value: String) {
     }
 }
 
-
 //Delete config files and call the create file method
 #[tauri::command(rename_all = "snake_case")]
-pub fn reset_configuration() -> Result<(),  String>{
-
+pub fn reset_configuration() -> Result<(), String> {
     //TODO: Handle these errors on front end, let user know it didnt work
     //Delete book json and covers
-    println!("{:?}",get_settings_path());
-    println!("{:?}",get_covers_path());
-
+    println!("{:?}", get_settings_path());
+    println!("{:?}", get_covers_path());
 
     let _ = remove_dir_all(get_cache_dir());
 
     //Delete settings file
     //If its an error thats okay because we remake the settings file anyway
-    println!("{:?}",get_settings_path());
+    println!("{:?}", get_settings_path());
     let _ = remove_file(get_settings_path());
 
     //call default settings
@@ -232,5 +231,3 @@ pub fn reset_configuration() -> Result<(),  String>{
 
     Ok(())
 }
-
-
