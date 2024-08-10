@@ -72,7 +72,7 @@ fn create_default_settings() -> Result<(), Error> {
     Ok(())
 }
 /// To force overwrite users settings in memory
-fn load_settings() {
+pub fn load_settings() -> HashMap<String, String> {
     let settings_path = get_settings_path();
     let bro = Path::new(&settings_path);
     if !bro.exists() {
@@ -109,7 +109,7 @@ fn load_settings() {
         }
     }
 
-    unsafe { SETTINGS_MAP = Some(settings_map) };
+    settings_map
 }
 
 ///Load user settings into memory, if they havent already been

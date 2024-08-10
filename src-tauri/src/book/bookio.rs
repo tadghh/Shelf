@@ -3,12 +3,15 @@ use std::{
     fs::{self, create_dir_all, File, OpenOptions},
     io::{BufReader, Write},
     path::{Path, PathBuf},
+    sync::Mutex,
     time::Instant,
 };
+use tauri::State;
 
 use crate::{
     book::util::{chunk_binary_search_index, get_cache_dir},
-    book_item::{create_cover, Book, BOOK_JSON},
+    book_item::{create_cover, get_json_path, Book},
+    book_worker::BookWorker,
     shelf::{get_cache_file_name, get_configuration_option, get_cover_image_folder_name},
 };
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
@@ -72,18 +75,14 @@ pub fn create_book_vec(items: &Vec<String>, write_directory: &PathBuf) -> Vec<Bo
 /// Initializes the books and loading them from the users provided directory, if the book_cache file is missing the all epubs will be read
 /// Otherwise only books missing from the Static vector will be initialized
 #[tauri::command]
-pub fn initialize_books() -> Option<Vec<Book>> {
+pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>> {
     let start_time = Instant::now();
 
     let mut file_changes = false;
 
     let mut book_json: Vec<Book>;
 
-    let json_path = get_cache_dir()
-        .join(get_cache_file_name())
-        .to_string_lossy()
-        .to_string()
-        .clone();
+    let json_path: String = get_json_path();
 
     //Need to add support for book_location being an array of string
     let dir = match get_configuration_option("book_location".to_string()) {
@@ -119,12 +118,13 @@ pub fn initialize_books() -> Option<Vec<Book>> {
     if let Err(err) = create_dir_all(&covers_directory) {
         eprintln!("Error creating cover directory: {:?}", err);
     }
-
-    unsafe {
-        if BOOK_JSON.get_json_path() != &json_path {
-            BOOK_JSON.update_json_path(json_path.clone());
-        }
+    let mut pecker = state.lock().unwrap();
+    let fuck = get_json_path().clone();
+    // unsafe {
+    if fuck != json_path {
+        pecker.update_cache_json_path(json_path.clone());
     }
+    // }
 
     if Path::new(&json_path).exists() {
         let file = OpenOptions::new()
@@ -177,6 +177,75 @@ pub fn initialize_books() -> Option<Vec<Book>> {
                 file_changes = true;
             }
         }
+    } else {
+        book_json = create_book_vec(&epubs, &covers_directory);
+        file_changes = true;
+    }
+
+    if file_changes {
+        let file = File::create(json_path).expect("JSON path should be defined, and a valid path");
+
+        serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist");
+    }
+
+    println!("Execution time: {} ms", start_time.elapsed().as_millis());
+
+    Some(book_json)
+}
+
+pub fn initialize_books_start() -> Option<Vec<Book>> {
+    let start_time = Instant::now();
+
+    let mut file_changes = false;
+
+    let book_json: Vec<Book>;
+
+    let json_path: String = get_json_path();
+
+    //Need to add support for book_location being an array of string
+    let dir = match get_configuration_option("book_location".to_string()) {
+        Some(val) => val,
+        None => {
+            return None;
+        }
+    };
+
+    if !Path::new(&dir).exists() {
+        return None;
+    }
+
+    let epubs: Vec<String> = fs::read_dir(dir)
+        .unwrap()
+        .filter_map(|entry| {
+            let path = entry.unwrap().path();
+            match path {
+                p if p.is_file() && p.extension().unwrap() == "epub" => {
+                    Some(p.to_str().unwrap().to_owned())
+                }
+                _ => None,
+            }
+        })
+        .collect();
+
+    let mut covers_directory = get_cache_dir();
+
+    covers_directory.push(get_cover_image_folder_name());
+
+    if let Err(err) = create_dir_all(&covers_directory) {
+        eprintln!("Error creating cover directory: {:?}", err);
+    }
+
+    if Path::new(&json_path).exists() {
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&json_path);
+
+        book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
+            Ok(data) => data,
+            Err(_) => Vec::new(),
+        };
     } else {
         book_json = create_book_vec(&epubs, &covers_directory);
         file_changes = true;
