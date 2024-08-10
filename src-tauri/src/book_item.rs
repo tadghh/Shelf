@@ -41,7 +41,7 @@ impl BookCache {
         self.json_path = json_path.to_string();
     }
 }
-static mut BOOK_JSON: BookCache = BookCache {
+pub static mut BOOK_JSON: BookCache = BookCache {
     books: Vec::new(),
     json_path: String::new(),
 };

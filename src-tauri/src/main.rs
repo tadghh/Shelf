@@ -2,32 +2,19 @@
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
 )]
-<<<<<<< HEAD
+use std::collections::HashMap;
+
 use app::*;
 
 use app::{
     book::{bookio::initialize_books, util::base64_encode_file},
-    book_item::load_book,
+    book_item::{load_book, Book},
     shelf::{
         change_configuration_option, get_configuration_option, reset_configuration,
         shelf_settings_values,
     },
 };
 
-fn main() {
-    tauri::Builder::default()
-=======
-use std::collections::HashMap;
-
-use app::book::{bookio::initialize_books, load_book, util::base64_encode_file};
-
-use app::shelf::{
-    change_configuration_option, get_configuration_option, reset_configuration,
-    shelf_settings_values,
-};
-
-use app::*;
-use book::Book;
 /// This is used for organization
 struct BookCache {
     books: Vec<Book>,
@@ -54,8 +41,7 @@ struct BookWorker {
 }
 fn main() {
     tauri::Builder::default()
-        .manage(state)
->>>>>>> 6e3d127 (added: worker along with comments)
+        // .manage(state)
         .invoke_handler(tauri::generate_handler![
             initialize_books,
             base64_encode_file,
