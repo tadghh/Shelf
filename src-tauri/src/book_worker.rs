@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::OpenOptions,
+    fs::{create_dir_all, OpenOptions},
     io::{Read, Seek, SeekFrom, Write},
     path::PathBuf,
 };
@@ -60,6 +60,16 @@ impl BookWorker {
     pub fn get_cover_image_folder_name(&self) -> &String {
         &self.cover_image_folder_name
     }
+    pub fn get_cover_image_directory(&self) -> Option<PathBuf> {
+        let mut covers_directory = get_cache_dir();
+        covers_directory.push(self.get_cover_image_folder_name());
+        match create_dir_all(covers_directory.clone()) {
+            Ok(()) => Some(covers_directory),
+            Err(_) => None,
+        }
+    }
+
+    // TODO support multiple book location
     pub fn get_application_settings(&self) -> &HashMap<String, String> {
         &self.application_user_settings
     }

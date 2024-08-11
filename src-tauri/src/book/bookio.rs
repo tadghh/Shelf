@@ -1,4 +1,6 @@
+use core::fmt;
 use epub::doc::EpubDoc;
+use regex::Regex;
 use std::{
     fs::{self, create_dir_all, File, OpenOptions},
     io::{BufReader, Write},
@@ -10,11 +12,12 @@ use tauri::State;
 
 use crate::{
     book::util::{chunk_binary_search_index, get_cache_dir},
-    book_item::{create_cover, Book},
+    book_item::{create_cover, unique_find_cover, Book},
     book_worker::BookWorker,
-    shelf::get_configuration_option,
 };
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
+
+use super::util::{check_epub_resource, sanitize_windows_filename};
 
 /// Writes the cover image to the specified path
 ///
@@ -23,20 +26,19 @@ use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 /// * `data` - A vector containing the image data
 /// * `path` - A string representing the path to write to
 ///
-pub fn write_cover_image(data: Option<(Vec<u8>, String)>, path: &PathBuf) -> Result<(), &PathBuf> {
-    if let Some(data) = data {
-        let mut file = match File::create(path) {
-            Err(..) => {
-                return Err(path);
+pub fn write_cover_image(data: (Vec<u8>, String), path: &PathBuf) -> Result<&PathBuf, ()> {
+    let (bytes, _) = data;
+
+    match File::create(path) {
+        Err(..) => return Err(()),
+        Ok(mut file) => {
+            if file.write_all(&bytes).is_err() {
+                return Err(());
             }
-            Ok(file) => file,
-        };
-        if file.write_all(&data.0).is_err() {
-            return Err(path);
         }
     }
 
-    Ok(())
+    Ok(path)
 }
 
 /// Creates a vector containing all the books and returns a a vector of book objects, here we also create the covers
@@ -85,27 +87,16 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
     let mut file_changes = false;
 
     let mut book_json: Vec<Book>;
-    let book_worker_json = state.lock().unwrap();
+    let book_worker = state.lock().unwrap();
 
-    let json_path: String = book_worker_json.get_json_path();
+    let json_path: String = book_worker.get_json_path();
 
-    //Need to add support for book_location being an array of string
-    let dir = match book_worker_json
-        .get_application_settings()
-        .get("book_location")
-    {
+    let dir = match book_worker.get_application_settings().get("book_location") {
         Some(val) => val,
         None => {
             return None;
         }
     };
-
-    // let dir = match get_configuration_option("book_location".to_string(), state.clone()) {
-    //     Some(val) => val,
-    //     None => {
-    //         return None;
-    //     }
-    // };
 
     if !Path::new(&dir).exists() {
         return None;
@@ -116,7 +107,7 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
         .filter_map(|entry| {
             let path = entry.unwrap().path();
             match path {
-                p if p.is_file() && p.extension().unwrap() == "epub" => {
+                p if p.is_file() && p.extension()? == "epub" => {
                     Some(p.to_str().unwrap().to_owned())
                 }
                 _ => None,
@@ -126,16 +117,11 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
 
     let epub_amount = epubs.len();
 
-    let mut covers_directory = get_cache_dir();
-
-    if let Err(err) = create_dir_all(&covers_directory) {
-        eprintln!("Error creating cover directory: {:?}", err);
-    }
-
-    covers_directory.push(book_worker_json.get_cover_image_folder_name());
-    // if get_json_path().clone() != json_path {
-    //     book_worker_json.update_cache_json_path(json_path.clone());
-    // }
+    // TODO make sure default is used if this is none (not in this exact context)
+    let covers_directory = match book_worker.get_cover_image_directory() {
+        Some(dir) => dir,
+        None => return None,
+    };
 
     if Path::new(&json_path).exists() {
         let file = OpenOptions::new()
@@ -161,14 +147,9 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
                         Ok(ebook) => {
                             let book_title = ebook.mdata("title")?;
                             let index = chunk_binary_search_index(&book_json, &book_title)?;
-                            let new_book = Book::new(
-                                create_cover(item_normalized.to_string(), &covers_directory)
-                                    .unwrap()
-                                    .to_string_lossy()
-                                    .to_string(),
-                                item_normalized,
-                                book_title,
-                            );
+
+                            let new_book =
+                                Book::new(item_normalized.clone(), item_normalized, book_title);
 
                             return Some((new_book, index));
                         }
@@ -270,4 +251,99 @@ pub fn initialize_books_start(
     println!("Execution time: {} ms", start_time.elapsed().as_millis());
 
     Some(book_json)
+}
+
+#[derive(Debug)]
+pub enum BookError {
+    NoUniqueCover,
+    ResourceNotFound,
+    XmlParseError,
+    IOError,
+    BadCoverData,
+}
+
+impl fmt::Display for BookError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            BookError::NoUniqueCover => write!(f, "Unique cover not found."),
+            BookError::ResourceNotFound => write!(f, "Resource not found."),
+            BookError::XmlParseError => write!(f, "Failed to parse XML."),
+            BookError::IOError => write!(f, "I/O error occurred."),
+            BookError::BadCoverData => write!(f, "Cover data missing or corrupted"),
+        }
+    }
+}
+
+impl std::error::Error for BookError {}
+
+pub fn get_book_cover_image(
+    ebook_directory: String,
+) -> Result<(Vec<u8>, std::string::String), BookError> {
+    let mut doc = EpubDoc::new(ebook_directory)
+        .map_err(|err| format!("Error opening EpubDoc: {}", err))
+        .unwrap();
+
+    // let epub_resources = doc.resources.clone();
+
+    //Base filename off the books title
+
+    // let cover_path = &write_directory.join(sanitize_windows_filename(format!(
+    //     "{}.jpg",
+    //     doc.mdata("title").unwrap()
+    // )));
+
+    //The below get_cover method only looks for a certain structure of cover image
+    match doc.get_cover() {
+        Some(cover_data) => {
+            //TODO log failed cover creations, because a expected cover exists
+            Ok(cover_data)
+        }
+        None => {
+            // no giving up a unique cover may still exist
+            match unique_find_cover(doc) {
+                Ok(cover_data) => Ok(cover_data),
+                Err(err) => Err(err),
+            }
+        }
+    }
+    // if doc.get_cover().is_some() {
+    //     //TODO wth is this
+    //     if let Err(err) = write_cover_image(doc.get_cover(), cover_path) {
+    //         return Ok(err.to_path_buf());
+    //     }
+    // } else {
+    //     //Look for the cover_id in the epub, we are just looking for any property containing the word cover
+    //     //This is because EpubDoc looks for an exact string, and some epubs dont contain it
+    //     // let mimetype = r"image/jpeg";
+    //     match check_epub_resource(
+    //         Regex::new(r"(?i)cover").unwrap(),
+    //         Regex::new(r"image/jpeg").unwrap(),
+    //         &epub_resources,
+    //         &mut doc,
+    //     ) {
+    //         Some(cover_id) => {
+    //             let cover: Option<(Vec<u8>, String)> = doc.get_resource(&cover_id);
+    //         }
+    //         None => match unique_find_cover(doc, cover_path) {
+    //             Ok() => todo!(),
+    //             Err(_) => todo!(),
+    //         },
+    //     }
+    // if let Some(cover_id) = check_epub_resource(
+    //     Regex::new(r"(?i)cover").unwrap(),
+    //     Regex::new(r"image/jpeg").unwrap(),
+    //     &epub_resources,
+    //     &mut doc,
+    // ) {
+    //     let cover: Option<(Vec<u8>, String)> = doc.get_resource(&cover_id);
+
+    //     if let Err(err) = write_cover_image(cover, cover_path) {
+    //         return Ok(err.to_path_buf());
+    //     }
+    // } else if let Err(err) = find_cover(doc, cover_path) {
+    //     return Ok(err);
+    // }
+    // }
+
+    // Ok(cover_path.to_path_buf())
 }
