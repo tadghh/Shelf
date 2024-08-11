@@ -51,17 +51,21 @@ pub fn create_book_vec(items: &Vec<String>, write_directory: &PathBuf) -> Vec<Bo
     let books: Vec<Book> = items
         .par_iter()
         .filter_map(|item| {
-            let title = EpubDoc::new(item).unwrap().mdata("title").unwrap();
-
-            if let Ok(cover_location) = create_cover(item.to_string(), write_directory) {
-                let new_book = Book::new(
-                    cover_location.to_string_lossy().to_string(),
-                    item.replace('\\', "/"),
-                    title,
-                );
-                Some(new_book)
-            } else {
-                None // Skip this book and continue with the next one
+            let title = EpubDoc::new(item).unwrap().mdata("title")?;
+            match create_cover(item.to_string(), write_directory) {
+                Ok(cover_location) => {
+                    let new_book = Book::new(
+                        cover_location.to_string_lossy().to_string(),
+                        item.replace('\\', "/"),
+                        title,
+                    );
+                    Some(new_book)
+                }
+                Err(e) => {
+                    //TODO why throw the book just because theres no cover
+                    println!("Failed to create cover: {}", e);
+                    None
+                }
             }
         })
         .collect();
