@@ -126,6 +126,7 @@ pub fn load_book(title: String, state: State<'_, Mutex<BookWorker>>) -> Option<B
             return Some(book.clone());
         } else {
             println!("Invalid index");
+            return None;
         }
     } else {
         println!("JSON File missing");

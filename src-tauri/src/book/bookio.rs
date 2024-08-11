@@ -90,12 +90,22 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
     let json_path: String = book_worker_json.get_json_path();
 
     //Need to add support for book_location being an array of string
-    let dir = match get_configuration_option("book_location".to_string(), state.clone()) {
+    let dir = match book_worker_json
+        .get_application_settings()
+        .get("book_location")
+    {
         Some(val) => val,
         None => {
             return None;
         }
     };
+
+    // let dir = match get_configuration_option("book_location".to_string(), state.clone()) {
+    //     Some(val) => val,
+    //     None => {
+    //         return None;
+    //     }
+    // };
 
     if !Path::new(&dir).exists() {
         return None;
