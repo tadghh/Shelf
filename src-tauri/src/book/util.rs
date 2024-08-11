@@ -7,7 +7,7 @@ use tauri::{
     generate_context, Config,
 };
 
-use crate::{book_item::Book, shelf::get_config_folder_name};
+use crate::book_item::Book;
 
 use std::{
     cmp::Ordering,
@@ -49,7 +49,7 @@ pub fn sanitize_windows_filename(filename: String) -> String {
 pub fn get_config_dir() -> PathBuf {
     let mut full_config_path =
         app_config_dir(&current_context()).expect("Failed to get config directory");
-    full_config_path.push(get_config_folder_name());
+    full_config_path.push(env!("CONFIG_FLDR_NAME"));
 
     if let Err(err) = create_dir_all(&full_config_path) {
         eprintln!("Error creating config directory: {:?}", err);

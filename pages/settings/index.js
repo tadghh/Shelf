@@ -62,7 +62,7 @@ export default function Settings() {
           />
           <div className="ml-auto mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
             <button
-              className=" rounded-lg  border-4 border-white bg-red-700 px-5 py-2.5 text-sm font-medium text-white transition-colors duration-300 ease-in-out hover:border-red-500 hover:bg-red-800"
+              className="rounded-lg border-4 border-white bg-red-700 px-5 py-2.5 text-sm font-medium text-white transition-colors duration-300 ease-in-out  hover:border-red-500 hover:bg-red-800"
               type="button"
               onClick={resetHandler}
             >
@@ -71,7 +71,9 @@ export default function Settings() {
           </div>
         </>
       ) : (
-        <></>
+        <>
+          <span>Failed to load the settings menu</span>
+        </>
       )}
     </div>
   );

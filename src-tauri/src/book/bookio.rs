@@ -10,9 +10,9 @@ use tauri::State;
 
 use crate::{
     book::util::{chunk_binary_search_index, get_cache_dir},
-    book_item::{create_cover, get_json_path, Book},
+    book_item::{create_cover, Book},
     book_worker::BookWorker,
-    shelf::{get_cache_file_name, get_configuration_option, get_cover_image_folder_name},
+    shelf::get_configuration_option,
 };
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 
@@ -81,11 +81,12 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
     let mut file_changes = false;
 
     let mut book_json: Vec<Book>;
+    let book_worker_json = state.lock().unwrap();
 
-    let json_path: String = get_json_path();
+    let json_path: String = book_worker_json.get_json_path();
 
     //Need to add support for book_location being an array of string
-    let dir = match get_configuration_option("book_location".to_string()) {
+    let dir = match get_configuration_option("book_location".to_string(), state.clone()) {
         Some(val) => val,
         None => {
             return None;
@@ -113,17 +114,13 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
 
     let mut covers_directory = get_cache_dir();
 
-    covers_directory.push(get_cover_image_folder_name());
-
     if let Err(err) = create_dir_all(&covers_directory) {
         eprintln!("Error creating cover directory: {:?}", err);
     }
-    let mut pecker = state.lock().unwrap();
-    let fuck = get_json_path().clone();
-    // unsafe {
-    if fuck != json_path {
-        pecker.update_cache_json_path(json_path.clone());
-    }
+
+    covers_directory.push(book_worker_json.get_cover_image_folder_name());
+    // if get_json_path().clone() != json_path {
+    //     book_worker_json.update_cache_json_path(json_path.clone());
     // }
 
     if Path::new(&json_path).exists() {
@@ -146,24 +143,27 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
                 .filter_map(|item| {
                     let item_normalized = item.replace('\\', "/");
 
-                    if let Some(title) = EpubDoc::new(&item_normalized)
-                        .expect("The epub path was bad")
-                        .mdata("title")
-                    {
-                        if let Some(index) = chunk_binary_search_index(&book_json, &title) {
+                    match EpubDoc::new(&item_normalized) {
+                        Ok(ebook) => {
+                            let book_title = ebook.mdata("title")?;
+                            let index = chunk_binary_search_index(&book_json, &book_title)?;
                             let new_book = Book::new(
                                 create_cover(item_normalized.to_string(), &covers_directory)
                                     .unwrap()
                                     .to_string_lossy()
                                     .to_string(),
                                 item_normalized,
-                                title,
+                                book_title,
                             );
 
                             return Some((new_book, index));
                         }
+                        Err(e) => {
+                            println!("Book creation failed with: {}", e);
+
+                            return None;
+                        }
                     }
-                    None
                 })
                 .collect::<Vec<_>>();
 
@@ -193,28 +193,24 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
     Some(book_json)
 }
 
-pub fn initialize_books_start() -> Option<Vec<Book>> {
+pub fn initialize_books_start(
+    cover_folder_name: String,
+    json_path: String,
+    book_location: &String,
+) -> Option<Vec<Book>> {
     let start_time = Instant::now();
 
     let mut file_changes = false;
 
     let book_json: Vec<Book>;
 
-    let json_path: String = get_json_path();
+    if !Path::new(&book_location).exists() {
+        println!("Start failed no book dir");
 
-    //Need to add support for book_location being an array of string
-    let dir = match get_configuration_option("book_location".to_string()) {
-        Some(val) => val,
-        None => {
-            return None;
-        }
-    };
-
-    if !Path::new(&dir).exists() {
         return None;
     }
 
-    let epubs: Vec<String> = fs::read_dir(dir)
+    let epubs: Vec<String> = fs::read_dir(book_location)
         .unwrap()
         .filter_map(|entry| {
             let path = entry.unwrap().path();
@@ -229,7 +225,7 @@ pub fn initialize_books_start() -> Option<Vec<Book>> {
 
     let mut covers_directory = get_cache_dir();
 
-    covers_directory.push(get_cover_image_folder_name());
+    covers_directory.push(cover_folder_name);
 
     if let Err(err) = create_dir_all(&covers_directory) {
         eprintln!("Error creating cover directory: {:?}", err);

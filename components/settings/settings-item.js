@@ -33,8 +33,8 @@ export default function SettingsItem({
 
   return settingsItemStatus != "" ? (
     <div className="mt-2 flex h-28 w-full items-center justify-between rounded-xl border bg-white p-4">
-      <div className="flex text-gray-900 ">
-        <h2 className="pr-2 text-2xl font-bold leading-4 ">{settingsTitle}</h2>
+      <div className="flex text-gray-900">
+        <h2 className="pr-2 text-2xl font-bold leading-4">{settingsTitle}</h2>
         <p> {settingsDescription}</p>
       </div>
       <form>

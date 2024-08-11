@@ -14,7 +14,6 @@ use crate::{
         },
     },
     book_worker::BookWorker,
-    shelf::get_cache_file_name,
 };
 use epub::doc::EpubDoc;
 use regex::Regex;
@@ -40,15 +39,18 @@ impl BookCache {
     pub fn new(books: Option<Vec<Book>>) -> BookCache {
         BookCache {
             books,
-            json_path: get_json_path().into(),
+            json_path: get_cache_dir()
+                .join(env!("CACHE_F_NAME"))
+                .to_string_lossy()
+                .to_string(),
         }
     }
     pub fn update_books(&mut self, new_books: Vec<Book>) {
         self.books = Some(new_books);
     }
 
-    pub fn get_json_path(&self) -> String {
-        "poop".to_string()
+    pub fn get_json_path(&self) -> &String {
+        &self.json_path
     }
     pub fn get_books(&self) -> &Vec<Book> {
         self.books.as_ref().unwrap()
@@ -61,13 +63,7 @@ impl BookCache {
 //     books: Vec::new(),
 //     json_path: String::new(),
 // };
-pub fn get_json_path() -> String {
-    get_cache_dir()
-        .join(get_cache_file_name())
-        .to_string_lossy()
-        .to_string()
-        .clone()
-}
+
 /// Used for handling books on the front end
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Book {
