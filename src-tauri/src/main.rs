@@ -16,7 +16,15 @@ use app::{
 };
 use book_item::BookCache;
 use book_worker::{load_settings, BookWorker};
+use tokio::runtime::Runtime;
+
 fn main() {
+    let runtime = Runtime::new().expect("Failed to create Tokio runtime");
+
+    // Block on the async function `init_db`
+    runtime.block_on(async {
+        database::init_db().await;
+    });
     let mut worker = BookWorker::new(load_settings(), None);
 
     let book_cache = BookCache::new(worker.initialize_books(), worker.get_json_path());
