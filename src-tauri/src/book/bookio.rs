@@ -1,7 +1,7 @@
 use core::fmt;
 use epub::doc::EpubDoc;
 use std::{
-    fs::{self, create_dir_all, File, OpenOptions},
+    fs::{self, File, OpenOptions},
     io::{BufReader, Write},
     path::{Path, PathBuf},
     sync::Mutex,
@@ -10,7 +10,7 @@ use std::{
 use tauri::State;
 
 use crate::{
-    book::util::{chunk_binary_search_index, get_cache_dir},
+    book::util::chunk_binary_search_index,
     book_item::{unique_find_cover, Book},
     book_worker::BookWorker,
 };
@@ -170,70 +170,70 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
     Some(book_json)
 }
 
-pub fn initialize_books_start(
-    cover_folder_name: String,
-    json_path: String,
-    book_location: &String,
-) -> Option<Vec<Book>> {
-    let start_time = Instant::now();
+// pub fn initialize_books_start(
+//     cover_folder_name: String,
+//     json_path: String,
+//     book_location: &String,
+// ) -> Option<Vec<Book>> {
+//     let start_time = Instant::now();
 
-    let mut file_changes = false;
+//     let mut file_changes = false;
 
-    let book_json: Vec<Book>;
+//     let book_json: Vec<Book>;
 
-    if !Path::new(&book_location).exists() {
-        println!("Start failed no book dir");
+//     if !Path::new(&book_location).exists() {
+//         println!("Start failed no book dir");
 
-        return None;
-    }
+//         return None;
+//     }
 
-    let epubs: Vec<String> = fs::read_dir(book_location)
-        .unwrap()
-        .filter_map(|entry| {
-            let path = entry.unwrap().path();
-            match path {
-                p if p.is_file() && p.extension().unwrap() == "epub" => {
-                    Some(p.to_str().unwrap().to_owned())
-                }
-                _ => None,
-            }
-        })
-        .collect();
+//     let epubs: Vec<String> = fs::read_dir(book_location)
+//         .unwrap()
+//         .filter_map(|entry| {
+//             let path = entry.unwrap().path();
+//             match path {
+//                 p if p.is_file() && p.extension().unwrap() == "epub" => {
+//                     Some(p.to_str().unwrap().to_owned())
+//                 }
+//                 _ => None,
+//             }
+//         })
+//         .collect();
 
-    let mut covers_directory = get_cache_dir();
+//     let mut covers_directory = get_cache_dir();
 
-    covers_directory.push(cover_folder_name);
+//     covers_directory.push(cover_folder_name);
 
-    if let Err(err) = create_dir_all(&covers_directory) {
-        eprintln!("Error creating cover directory: {:?}", err);
-    }
+//     if let Err(err) = create_dir_all(&covers_directory) {
+//         eprintln!("Error creating cover directory: {:?}", err);
+//     }
 
-    if Path::new(&json_path).exists() {
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(&json_path);
+//     if Path::new(&json_path).exists() {
+//         let file = OpenOptions::new()
+//             .read(true)
+//             .write(true)
+//             .create(true)
+//             .open(&json_path);
 
-        book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
-            Ok(data) => data,
-            Err(_) => Vec::new(),
-        };
-    } else {
-        book_json = create_book_vec(&epubs);
-        file_changes = true;
-    }
+//         book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
+//             Ok(data) => data,
+//             Err(_) => Vec::new(),
+//         };
+//     } else {
+//         book_json = create_book_vec(&epubs);
+//         file_changes = true;
+//     }
 
-    if file_changes {
-        let file = File::create(json_path).expect("JSON path should be defined, and a valid path");
+//     if file_changes {
+//         let file = File::create(json_path).expect("JSON path should be defined, and a valid path");
 
-        serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist");
-    }
+//         serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist");
+//     }
 
-    println!("Execution time: {} ms", start_time.elapsed().as_millis());
+//     println!("Execution time: {} ms", start_time.elapsed().as_millis());
 
-    Some(book_json)
-}
+//     Some(book_json)
+// }
 
 #[derive(Debug)]
 pub enum BookError {

@@ -1,7 +1,7 @@
 use std::{
-    fs::{File, OpenOptions},
+    fs::{create_dir_all, File, OpenOptions},
     io::BufReader,
-    path::Path,
+    path::{Path, PathBuf},
     sync::Mutex,
 };
 
@@ -9,7 +9,7 @@ use crate::{
     book::{
         bookio::{get_book_cover_image, write_cover_image, BookError},
         util::{
-            check_epub_resource, chunk_binary_search_index_load, get_cache_dir,
+            check_epub_resource, chunk_binary_search_index_load, current_context,
             sanitize_windows_filename,
         },
     },
@@ -19,7 +19,7 @@ use epub::doc::EpubDoc;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::from_reader;
-use tauri::State;
+use tauri::{api::path::app_cache_dir, State};
 use xmltree::Element;
 
 use crate::xml::extract_image_source;
@@ -31,19 +31,9 @@ pub struct BookCache {
 }
 
 impl BookCache {
-    /// Used to update the location of the book_cache.json file
-    // fn update_path(&mut self, new_json_path: String) {
-    //     self.json_path = new_json_path;
-    // }
     /// Used to update the contents of the book_cache.json file
-    pub fn new(books: Option<Vec<Book>>) -> BookCache {
-        BookCache {
-            books,
-            json_path: get_cache_dir()
-                .join(env!("CACHE_F_NAME"))
-                .to_string_lossy()
-                .to_string(),
-        }
+    pub fn new(books: Option<Vec<Book>>, json_path: String) -> BookCache {
+        BookCache { books, json_path }
     }
     pub fn update_books(&mut self, new_books: Vec<Book>) {
         self.books = Some(new_books);
@@ -59,10 +49,6 @@ impl BookCache {
         self.json_path = json_path;
     }
 }
-// pub static mut BOOK_JSON: BookCache = BookCache {
-//     books: Vec::new(),
-//     json_path: String::new(),
-// };
 
 /// Used for handling books on the front end
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -73,7 +59,20 @@ pub struct Book {
 }
 impl Book {
     pub fn new(cover_location: Option<String>, book_location: String, title: String) -> Book {
-        // Clean book title
+        fn get_cover_dir() -> PathBuf {
+            let mut cache_dir =
+                app_cache_dir(&current_context()).expect("Failed to get cache directory");
+            cache_dir.push("cache");
+            cache_dir.push(env!("COVER_IMAGE_FOLDER_NAME"));
+            if let Err(err) = create_dir_all(&cache_dir) {
+                eprintln!("Error creating {:?} directory: {:?}", err, cache_dir);
+            }
+
+            cache_dir
+        }
+
+        // Tries to write the cover image to 'cover_cache'
+        // Otherwise uses default.jpg from /public
         let final_cover_location = match cover_location {
             Some(cover_loc) => cover_loc,
             None => {
@@ -81,15 +80,15 @@ impl Book {
                     .map_err(|err| format!("Error opening EpubDoc: {}", err))
                     .unwrap();
 
-                let mut covers_directory = get_cache_dir();
-                covers_directory.push(env!("COVER_IMAGE_FOLDER_NAME"));
+                let covers_directory = get_cover_dir();
 
                 // why why why, am I supposed to make another object before the ensures everything is g? (unwrap)
                 let mut cover_name = epub_doc.mdata("title").unwrap();
                 cover_name.push_str(".jpg");
 
                 let cover_path = &covers_directory.join(sanitize_windows_filename(cover_name));
-                let final_shit = match get_book_cover_image(epub_doc) {
+
+                let cover_image_path = match get_book_cover_image(epub_doc) {
                     Ok(cover_data) => match write_cover_image(cover_data, cover_path) {
                         // I need the path as a string plz
                         Ok(cover_path) => match cover_path.to_str() {
@@ -99,7 +98,7 @@ impl Book {
                         },
                         Err(_) => {
                             println!(
-                                "Wrote the file successfully but it was written into the abyss"
+                                "Wrote the file successfully but it was written into the abyss, perhaps a folder is missing from the 'cover_path'"
                             );
 
                             env!("DEFAULT_COVER_NAME").to_string()
@@ -110,7 +109,7 @@ impl Book {
                         env!("DEFAULT_COVER_NAME").to_string()
                     }
                 };
-                final_shit
+                cover_image_path
             }
         };
 

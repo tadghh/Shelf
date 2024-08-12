@@ -1,29 +1,18 @@
-use base64::{engine::general_purpose, Engine as _};
 use epub::doc::EpubDoc;
 use regex::Regex;
 
-use tauri::{
-    api::path::{app_cache_dir, app_config_dir},
-    generate_context, Config,
-};
+use tauri::{generate_context, Config};
 
 use crate::book_item::Book;
 
-use std::{
-    cmp::Ordering,
-    collections::HashMap,
-    fs::{create_dir_all, File},
-    io::{BufReader, Read},
-    path::PathBuf,
-};
+use std::{cmp::Ordering, collections::HashMap, fs::File, io::BufReader};
 
 /// Gets the current tauri context.
-/// Im not sure how else to get the tauri config file.
 pub fn current_context() -> Config {
-    return generate_context!().config().clone();
+    generate_context!().config().clone()
 }
-/// Removes special charectars from a given string and returns it
-/// Some book titles contain charectars that arent compatible when used as filenames
+/// Removes special characters from a given string and returns it
+/// Some book titles contain characters that aren't compatible when used as filenames
 ///
 /// # Arguments
 ///
@@ -46,27 +35,6 @@ pub fn sanitize_windows_filename(filename: String) -> String {
     sanitized
 }
 
-pub fn get_config_dir() -> PathBuf {
-    let mut full_config_path =
-        app_config_dir(&current_context()).expect("Failed to get config directory");
-    full_config_path.push(env!("CONFIG_FLDR_NAME"));
-
-    if let Err(err) = create_dir_all(&full_config_path) {
-        eprintln!("Error creating config directory: {:?}", err);
-    }
-
-    full_config_path
-}
-
-pub fn get_cache_dir() -> PathBuf {
-    let mut cache_dir = app_cache_dir(&current_context()).expect("Failed to get cache directory");
-    cache_dir.push("cache");
-    if let Err(err) = create_dir_all(&cache_dir) {
-        eprintln!("Error creating cache directory: {:?}", err);
-    }
-
-    cache_dir
-}
 /// Encodes the data of a give file, returning the encoded data
 /// This is to get around CORS issues
 ///
@@ -74,26 +42,26 @@ pub fn get_cache_dir() -> PathBuf {
 ///
 /// * `filepath` - The file to encode
 ///
-#[tauri::command(rename_all = "snake_case")]
-pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
-    //TODO Archive this
-    let mut buffer = Vec::new();
+// #[tauri::command(rename_all = "snake_case")]
+// pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
+//     //TODO Archive this
+//     let mut buffer = Vec::new();
 
-    //Refactor this
-    let mut file = match File::open(file_path) {
-        Ok(file) => file,
-        Err(_) => {
-            return Err("There was an issue opening the file".to_string());
-        }
-    };
+//     //Refactor this
+//     let mut file = match File::open(file_path) {
+//         Ok(file) => file,
+//         Err(_) => {
+//             return Err("There was an issue opening the file".to_string());
+//         }
+//     };
 
-    file.read_to_end(&mut buffer)
-        .expect("There was an issue with the buffer");
+//     file.read_to_end(&mut buffer)
+//         .expect("There was an issue with the buffer");
 
-    // Encode the file data as base64
-    let base64_data = general_purpose::STANDARD.encode(&buffer);
-    Ok(base64_data)
-}
+//     // Encode the file data as base64
+//     let base64_data = general_purpose::STANDARD.encode(&buffer);
+//     Ok(base64_data)
+// }
 
 /// Finds a chunk in the dataset that starts with the same letter as the key, returning the found value
 /// One this chunk is found we binary search within that section, theoretically faster

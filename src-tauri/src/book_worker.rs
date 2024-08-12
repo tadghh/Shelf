@@ -1,68 +1,66 @@
 use std::{
     collections::HashMap,
-    fs::{create_dir_all, OpenOptions},
-    io::{Read, Seek, SeekFrom, Write},
-    path::PathBuf,
+    fs::{self, create_dir_all, File, OpenOptions},
+    io::{BufReader, Error, Read, Seek, SeekFrom, Write},
+    path::{Path, PathBuf},
+    time::Instant,
 };
 
+use epub::doc::EpubDoc;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use tauri::api::path::{app_cache_dir, app_config_dir};
+
 use crate::{
-    book::util::{get_cache_dir, get_config_dir},
+    book::{
+        bookio::create_book_vec,
+        util::{chunk_binary_search_index, current_context},
+    },
     book_item::{Book, BookCache},
     shelf::shelf_settings_values,
 };
+
+// This worker object allowed me to replace the global statics I was using before.
+// We leverage tauris manage state feature to access it when needed
 pub struct BookWorker {
-    cache_file_name: String,
-    settings_file_name: String,
-    cover_image_folder_name: String,
-    config_folder_name: String,
     application_user_settings: HashMap<String, String>,
     current_book_cache: Option<BookCache>,
 }
 impl BookWorker {
     pub fn new(
-        cache_file_name: String,
-        settings_file_name: String,
-        cover_image_folder_name: String,
-        config_folder_name: String,
         application_user_settings: HashMap<String, String>,
         current_book_cache: Option<BookCache>,
     ) -> BookWorker {
         BookWorker {
-            cache_file_name,
-            settings_file_name,
-            cover_image_folder_name,
-            config_folder_name,
             application_user_settings,
             current_book_cache,
         }
     }
+    /// Creates a settings file and fills it with mostly valid default values.
+
     pub fn set_book_cache(&mut self, new_book_cache: BookCache) {
         self.current_book_cache = Some(new_book_cache)
     }
-    fn get_settings_file_name(&self) -> &String {
-        &self.settings_file_name
+    pub fn import_application_settings(&mut self, new_book_cache: HashMap<String, String>) {
+        self.application_user_settings = new_book_cache
     }
-    pub fn get_settings_path(&self) -> PathBuf {
-        get_config_dir().join(self.get_settings_file_name())
-    }
-    pub fn get_cache_file_name(&self) -> &String {
-        &self.cache_file_name
-    }
+
+    // pub fn get_settings_path(&self) -> PathBuf {
+    //     get_config_dir().join(self.get_settings_file_name())
+    // }
+
     pub fn get_json_path(&self) -> String {
-        get_cache_dir()
-            .join(self.get_cache_file_name())
+        self.get_cache_dir()
+            .join(env!("CACHE_F_NAME"))
             .to_string_lossy()
             .to_string()
     }
-    pub fn get_config_folder_name(&self) -> &String {
-        &self.config_folder_name
+    pub fn get_config_folder_name(&self) -> String {
+        env!("CONFIG_FLDR_NAME").to_string()
     }
-    pub fn get_cover_image_folder_name(&self) -> &String {
-        &self.cover_image_folder_name
-    }
+
     pub fn get_cover_image_directory(&self) -> Option<PathBuf> {
-        let mut covers_directory = get_cache_dir();
-        covers_directory.push(self.get_cover_image_folder_name());
+        let covers_directory = self.get_covers_path();
+        //covers_directory.push(self.get_cover_image_folder_name());
         match create_dir_all(covers_directory.clone()) {
             Ok(()) => Some(covers_directory),
             Err(_) => None,
@@ -78,6 +76,7 @@ impl BookWorker {
         let pecker = self.current_book_cache.as_ref().unwrap();
         &pecker
     }
+
     pub fn get_book_cache_test(&self) -> &BookCache {
         let pecker = self.current_book_cache.as_ref().unwrap();
         &pecker
@@ -98,11 +97,24 @@ impl BookWorker {
             self.update_application_setting(lowercase_name.to_string(), default_value.to_string());
         }
     }
+    fn get_cache_dir(&self) -> PathBuf {
+        let mut cache_dir =
+            app_cache_dir(&current_context()).expect("Failed to get cache directory");
+        cache_dir.push("cache");
+        if let Err(err) = create_dir_all(&cache_dir) {
+            eprintln!("Error creating cache directory: {:?}", err);
+        }
+
+        cache_dir
+    }
+    pub fn get_covers_path(&self) -> PathBuf {
+        self.get_cache_dir().join(env!("COVER_IMAGE_FOLDER_NAME"))
+    }
     pub fn update_application_setting(&mut self, option_name: String, value: String) {
         self.application_user_settings
             .insert(option_name.clone(), value.clone());
 
-        let settings_path = self.get_settings_path();
+        let settings_path = get_settings_path();
         let mut file = OpenOptions::new()
             .create(true)
             .read(true)
@@ -145,4 +157,185 @@ impl BookWorker {
             file.write_all(new_line.as_bytes()).unwrap();
         }
     }
+    pub fn initialize_books(&self) -> Option<Vec<Book>> {
+        let start_time = Instant::now();
+
+        let mut file_changes = false;
+
+        let mut book_json: Vec<Book>;
+        //let book_worker = state.lock().unwrap();
+
+        let json_path: String = self.get_json_path();
+
+        let dir = match self.get_application_settings().get("book_location") {
+            Some(val) => val,
+            None => {
+                return None;
+            }
+        };
+
+        if !Path::new(&dir).exists() {
+            return None;
+        }
+
+        let epubs: Vec<String> = fs::read_dir(dir)
+            .unwrap()
+            .filter_map(|entry| {
+                let path = entry.unwrap().path();
+                match path {
+                    p if p.is_file() && p.extension()? == "epub" => {
+                        Some(p.to_str().unwrap().to_owned())
+                    }
+                    _ => None,
+                }
+            })
+            .collect();
+
+        let epub_amount = epubs.len();
+
+        // TODO make sure default is used if this is none (not in this exact context)
+
+        if Path::new(&json_path).exists() {
+            let file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(&json_path);
+
+            book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
+                Ok(data) => data,
+                Err(_) => Vec::new(),
+            };
+
+            let current_length = book_json.len();
+
+            if current_length != epub_amount {
+                let new_books: Vec<(Book, usize)> = epubs
+                    .par_iter()
+                    .filter_map(|item| {
+                        let item_normalized = item.replace('\\', "/");
+
+                        match EpubDoc::new(&item_normalized) {
+                            Ok(ebook) => {
+                                let book_title = ebook.mdata("title")?;
+                                let index = chunk_binary_search_index(&book_json, &book_title)?;
+
+                                let new_book = Book::new(None, item_normalized, book_title);
+
+                                return Some((new_book, index));
+                            }
+                            Err(e) => {
+                                println!("Book creation failed with: {}", e);
+
+                                return None;
+                            }
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                if new_books.len() != 0 {
+                    let mut index_offset = 0;
+                    for (book, index) in new_books {
+                        book_json.insert(index + index_offset, book);
+                        index_offset += 1;
+                    }
+
+                    file_changes = true;
+                }
+            }
+        } else {
+            book_json = create_book_vec(&epubs);
+            file_changes = true;
+        }
+
+        if file_changes {
+            let file =
+                File::create(json_path).expect("JSON path should be defined, and a valid path");
+
+            serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist");
+        }
+
+        println!("Execution time: {} ms", start_time.elapsed().as_millis());
+
+        Some(book_json)
+    }
+}
+pub fn get_config_dir() -> PathBuf {
+    let mut full_config_path =
+        app_config_dir(&current_context()).expect("Failed to get config directory");
+    full_config_path.push(env!("CONFIG_FLDR_NAME"));
+
+    if let Err(err) = create_dir_all(&full_config_path) {
+        eprintln!("Error creating config directory: {:?}", err);
+    }
+
+    full_config_path
+}
+pub fn get_settings_path() -> PathBuf {
+    get_config_dir().join(env!("SETTINGS_F_NAME"))
+}
+pub fn get_cache_dir() -> PathBuf {
+    let mut cache_dir = app_cache_dir(&current_context()).expect("Failed to get cache directory");
+    cache_dir.push("cache");
+    if let Err(err) = create_dir_all(&cache_dir) {
+        eprintln!("Error creating cache directory: {:?}", err);
+    }
+
+    cache_dir
+}
+pub fn load_settings() -> HashMap<String, String> {
+    let settings_path = get_settings_path();
+    let bro = Path::new(&settings_path);
+    if !bro.exists() {
+        let _ = create_default_settings();
+    }
+    let file = match OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(&settings_path)
+    {
+        Ok(file) => file,
+        Err(e) => {
+            eprintln!("Error opening settings file, trying to create one: {}", e);
+
+            OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&settings_path)
+                .expect("Failed to open settings file")
+        }
+    };
+
+    let reader = BufReader::new(&file);
+
+    let mut settings_map = HashMap::new();
+
+    for line in std::io::BufRead::lines(reader) {
+        let line_content = line.unwrap();
+        let split: Vec<&str> = line_content.split('=').collect();
+
+        if split.len() == 2 {
+            settings_map.insert(split[0].to_string(), split[1].to_string());
+        }
+    }
+
+    settings_map
+}
+pub fn create_default_settings() -> Result<(), Error> {
+    let mut file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(get_settings_path())
+        .expect("Failed to open or create settings file");
+
+    // Generate default settings from shelf_settings_values
+    let default_settings: HashMap<String, (String, String)> = shelf_settings_values();
+
+    for (_setting_name, (lowercase_name, default_value)) in default_settings.iter() {
+        let setting_str = format!("{}={}\n", lowercase_name, default_value);
+        file.write_all(setting_str.as_bytes())?;
+    }
+    Ok(())
 }
