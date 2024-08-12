@@ -1,6 +1,5 @@
 use core::fmt;
 use epub::doc::EpubDoc;
-use regex::Regex;
 use std::{
     fs::{self, create_dir_all, File, OpenOptions},
     io::{BufReader, Write},
@@ -12,12 +11,10 @@ use tauri::State;
 
 use crate::{
     book::util::{chunk_binary_search_index, get_cache_dir},
-    book_item::{create_cover, unique_find_cover, Book},
+    book_item::{unique_find_cover, Book},
     book_worker::BookWorker,
 };
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
-
-use super::util::{check_epub_resource, sanitize_windows_filename};
 
 /// Writes the cover image to the specified path
 ///
@@ -49,25 +46,15 @@ pub fn write_cover_image(data: (Vec<u8>, String), path: &PathBuf) -> Result<&Pat
 /// * `items` - A vector containing the book directories
 /// * `write_directory` - A string representing the path to write to
 ///
-pub fn create_book_vec(items: &Vec<String>, write_directory: &PathBuf) -> Vec<Book> {
+pub fn create_book_vec(items: &Vec<String>) -> Vec<Book> {
     let books: Vec<Book> = items
         .par_iter()
         .filter_map(|item| {
-            let title = EpubDoc::new(item).unwrap().mdata("title")?;
-            match create_cover(item.to_string(), write_directory) {
-                Ok(cover_location) => {
-                    let new_book = Book::new(
-                        cover_location.to_string_lossy().to_string(),
-                        item.replace('\\', "/"),
-                        title,
-                    );
-                    Some(new_book)
-                }
-                Err(e) => {
-                    //TODO why throw the book just because theres no cover
-                    println!("Failed to create cover: {}", e);
-                    None
-                }
+            if let Ok(book) = EpubDoc::new(item) {
+                let title = book.mdata("title")?;
+                Some(Book::new(None, item.to_string(), title))
+            } else {
+                None
             }
         })
         .collect();
@@ -118,10 +105,6 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
     let epub_amount = epubs.len();
 
     // TODO make sure default is used if this is none (not in this exact context)
-    let covers_directory = match book_worker.get_cover_image_directory() {
-        Some(dir) => dir,
-        None => return None,
-    };
 
     if Path::new(&json_path).exists() {
         let file = OpenOptions::new()
@@ -148,8 +131,7 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
                             let book_title = ebook.mdata("title")?;
                             let index = chunk_binary_search_index(&book_json, &book_title)?;
 
-                            let new_book =
-                                Book::new(item_normalized.clone(), item_normalized, book_title);
+                            let new_book = Book::new(None, item_normalized, book_title);
 
                             return Some((new_book, index));
                         }
@@ -173,7 +155,7 @@ pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>
             }
         }
     } else {
-        book_json = create_book_vec(&epubs, &covers_directory);
+        book_json = create_book_vec(&epubs);
         file_changes = true;
     }
 
@@ -238,7 +220,7 @@ pub fn initialize_books_start(
             Err(_) => Vec::new(),
         };
     } else {
-        book_json = create_book_vec(&epubs, &covers_directory);
+        book_json = create_book_vec(&epubs);
         file_changes = true;
     }
 
@@ -277,12 +259,8 @@ impl fmt::Display for BookError {
 impl std::error::Error for BookError {}
 
 pub fn get_book_cover_image(
-    ebook_directory: String,
+    mut doc: EpubDoc<BufReader<File>>,
 ) -> Result<(Vec<u8>, std::string::String), BookError> {
-    let mut doc = EpubDoc::new(ebook_directory)
-        .map_err(|err| format!("Error opening EpubDoc: {}", err))
-        .unwrap();
-
     // let epub_resources = doc.resources.clone();
 
     //Base filename off the books title

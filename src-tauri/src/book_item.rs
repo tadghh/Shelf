@@ -1,7 +1,7 @@
 use std::{
     fs::{File, OpenOptions},
     io::BufReader,
-    path::{Path, PathBuf},
+    path::Path,
     sync::Mutex,
 };
 
@@ -73,12 +73,45 @@ pub struct Book {
 }
 impl Book {
     pub fn new(cover_location: Option<String>, book_location: String, title: String) -> Book {
+        // Clean book title
         let final_cover_location = match cover_location {
             Some(cover_loc) => cover_loc,
-            None => match get_book_cover_image(book_location) {
-                Ok(cover_data) => todo!(),
-                Err(err) => todo!(),
-            },
+            None => {
+                let epub_doc = EpubDoc::new(&book_location)
+                    .map_err(|err| format!("Error opening EpubDoc: {}", err))
+                    .unwrap();
+
+                let mut covers_directory = get_cache_dir();
+                covers_directory.push(env!("COVER_IMAGE_FOLDER_NAME"));
+
+                // why why why, am I supposed to make another object before the ensures everything is g? (unwrap)
+                let mut cover_name = epub_doc.mdata("title").unwrap();
+                cover_name.push_str(".jpg");
+
+                let cover_path = &covers_directory.join(sanitize_windows_filename(cover_name));
+                let final_shit = match get_book_cover_image(epub_doc) {
+                    Ok(cover_data) => match write_cover_image(cover_data, cover_path) {
+                        // I need the path as a string plz
+                        Ok(cover_path) => match cover_path.to_str() {
+                            Some(cover_string) => cover_string.to_string(),
+                            // even though we could write the cover image the 'path' was somehow None
+                            None => env!("DEFAULT_COVER_NAME").to_string(),
+                        },
+                        Err(_) => {
+                            println!(
+                                "Wrote the file successfully but it was written into the abyss"
+                            );
+
+                            env!("DEFAULT_COVER_NAME").to_string()
+                        }
+                    },
+                    Err(err) => {
+                        println!("{}", err);
+                        env!("DEFAULT_COVER_NAME").to_string()
+                    }
+                };
+                final_shit
+            }
         };
 
         Book {
@@ -108,7 +141,6 @@ impl Book {
 pub fn load_book(title: String, state: State<'_, Mutex<BookWorker>>) -> Option<Book> {
     let mut book_worker = state.lock().unwrap();
     let book_json_cache = book_worker.get_book_cache().get_json_path().clone();
-    // let book_cache: &String = &BOOK_JSON.json_path;
 
     if Path::new(&book_json_cache).exists() {
         let file = OpenOptions::new()
@@ -116,25 +148,18 @@ pub fn load_book(title: String, state: State<'_, Mutex<BookWorker>>) -> Option<B
             .write(true)
             .create(true)
             .open(book_json_cache);
-        //.update_books(new_books)
-
-        //let book_clone = book_worker;
 
         let new_books: Vec<Book> = match from_reader(BufReader::new(file.unwrap())) {
             Ok(data) => data,
             Err(_) => Vec::new(),
         };
         book_worker.update_book_cache(new_books);
-        //*book_worker = book_clone.clone();
         let books = book_worker.get_book_cache().get_books();
         let book_index = chunk_binary_search_index_load(books, &title);
-
-        if let Some(book) = books.get(book_index.unwrap()) {
-            // Accessing the book at the specified index
-            return Some(book.clone());
-        } else {
-            println!("Invalid index");
-            return None;
+        //TODO This should be a result (this method, we cant load "None" book)
+        match book_index {
+            Some(book_index) => return books.get(book_index).cloned(),
+            None => return None,
         }
     } else {
         println!("JSON File missing");
@@ -199,36 +224,29 @@ pub fn unique_find_cover(
     }
 }
 
-/// Creates the cover for the given book, returning the path to it in the cache folder, otherwise returning the fallback image
-///
-/// # Arguments
-///
-/// * `book_directory` - The directory of the book
-/// * `write_directory` - The path to write the cover data too
-///
-pub fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result<PathBuf, ()> {
-    let mut doc =
-        EpubDoc::new(book_directory).map_err(|err| format!("Error opening EpubDoc: {}", err))?;
+// pub fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result<PathBuf, ()> {
+//     let mut doc =
+//         EpubDoc::new(book_directory).map_err(|err| format!("Error opening EpubDoc: {}", err))?;
 
-    //The below get_cover method only looks for a certain structure of cover image
+//     //The below get_cover method only looks for a certain structure of cover image
 
-    //Look for the cover_id in the epub, we are just looking for any property containing the word cover
-    //This is because EpubDoc looks for an exact string, and some epubs dont contain it
-    // let mimetype = r"image/jpeg";
-    if let Some(cover_id) = check_epub_resource(
-        Regex::new(r"(?i)cover").unwrap(),
-        Regex::new(r"image/jpeg").unwrap(),
-        &epub_resources,
-        &mut doc,
-    ) {
-        let cover: Option<(Vec<u8>, String)> = doc.get_resource(&cover_id);
+//     //Look for the cover_id in the epub, we are just looking for any property containing the word cover
+//     //This is because EpubDoc looks for an exact string, and some epubs dont contain it
+//     // let mimetype = r"image/jpeg";
+//     if let Some(cover_id) = check_epub_resource(
+//         Regex::new(r"(?i)cover").unwrap(),
+//         Regex::new(r"image/jpeg").unwrap(),
+//         &epub_resources,
+//         &mut doc,
+//     ) {
+//         let cover: Option<(Vec<u8>, String)> = doc.get_resource(&cover_id);
 
-        if let Err(err) = write_cover_image(cover, cover_path) {
-            return Ok(err.to_path_buf());
-        }
-    } else if let Err(err) = find_cover(doc, cover_path) {
-        return Ok(err);
-    }
+//         if let Err(err) = write_cover_image(cover, cover_path) {
+//             return Ok(err.to_path_buf());
+//         }
+//     } else if let Err(err) = find_cover(doc, cover_path) {
+//         return Ok(err);
+//     }
 
-    Ok(cover_path.to_path_buf())
-}
+//     Ok(cover_path.to_path_buf())
+// }
