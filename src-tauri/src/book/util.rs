@@ -1,12 +1,18 @@
 use epub::doc::EpubDoc;
 use regex::Regex;
 
-use sqlx::{query::Query, Execute, Sqlite, SqlitePool};
-use tauri::{generate_context, Config};
+use sqlx::Sqlite;
+use tauri::{api::path::app_cache_dir, generate_context, Config};
 
 use crate::book_item::Book;
 
-use std::{cmp::Ordering, collections::HashMap, fs::File, io::BufReader};
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    fs::{create_dir_all, File},
+    io::BufReader,
+    path::PathBuf,
+};
 
 /// Gets the current tauri context.
 pub fn current_context() -> Config {
@@ -170,7 +176,7 @@ pub fn check_epub_resource(
         .map(|key| key.to_owned())
 }
 
-pub fn create_batch_query(batch_books: &Vec<Book>) -> Result<String, ()> {
+pub fn create_batch_query(batch_books: Vec<&Book>) -> Result<String, ()> {
     let mut query_builder: sqlx::QueryBuilder<Sqlite> =
         sqlx::QueryBuilder::new("INSERT INTO books (cover_location, book_location, title) ");
 
@@ -182,5 +188,16 @@ pub fn create_batch_query(batch_books: &Vec<Book>) -> Result<String, ()> {
     });
 
     let query = query_builder.into_sql();
+    println!("{:?}", query);
     Ok(query)
+}
+pub fn get_cover_dir() -> PathBuf {
+    let mut cache_dir = app_cache_dir(&current_context()).expect("Failed to get cache directory");
+    cache_dir.push("cache");
+    cache_dir.push(env!("COVER_IMAGE_FOLDER_NAME"));
+    if let Err(err) = create_dir_all(&cache_dir) {
+        eprintln!("Error creating {:?} directory: {:?}", err, cache_dir);
+    }
+
+    cache_dir
 }

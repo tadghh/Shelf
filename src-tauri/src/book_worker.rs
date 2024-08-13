@@ -15,7 +15,7 @@ use crate::{
         bookio::create_book_vec,
         util::{chunk_binary_search_index, current_context},
     },
-    book_item::{Book, BookCache},
+    book_item::{insert_book_db_batch, Book, BookCache},
     shelf::shelf_settings_values,
 };
 
@@ -235,16 +235,28 @@ impl BookWorker {
 
                 if new_books.len() != 0 {
                     let mut index_offset = 0;
-                    for (book, index) in new_books {
-                        book_json.insert(index + index_offset, book);
+                    for (book, index) in &new_books {
+                        book_json.insert(index + index_offset, book.to_owned());
                         index_offset += 1;
                     }
+                    let book_only: Vec<&Book> = new_books.iter().map(|(book, _)| book).collect();
 
+                    match insert_book_db_batch(book_only) {
+                        Ok(_) => println!("Insert worked"),
+                        Err(_) => println!("INsert not so work"),
+                    };
                     file_changes = true;
                 }
+            } else {
+                println! {"No new"}
             }
         } else {
             book_json = create_book_vec(&epubs);
+            let book_refs: Vec<&Book> = book_json.iter().collect();
+            match insert_book_db_batch(book_refs) {
+                Ok(_) => println!("Insert worked"),
+                Err(_) => println!("INsert not so work"),
+            };
             file_changes = true;
         }
 

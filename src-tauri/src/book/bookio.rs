@@ -1,16 +1,14 @@
 use core::fmt;
 use epub::doc::EpubDoc;
 use std::{
-    fs::{self, File, OpenOptions},
+    fs::File,
     io::{BufReader, Write},
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::Mutex,
-    time::Instant,
 };
 use tauri::State;
 
 use crate::{
-    book::util::chunk_binary_search_index,
     book_item::{unique_find_cover, Book},
     book_worker::BookWorker,
 };
@@ -69,105 +67,105 @@ pub fn create_book_vec(items: &Vec<String>) -> Vec<Book> {
 /// Otherwise only books missing from the Static vector will be initialized
 #[tauri::command]
 pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>> {
-    let start_time = Instant::now();
+    // let start_time = Instant::now();
 
-    let mut file_changes = false;
+    // let mut file_changes = false;
 
-    let mut book_json: Vec<Book>;
+    // let mut book_json: Vec<Book>;
     let book_worker = state.lock().unwrap();
 
-    let json_path: String = book_worker.get_json_path();
+    book_worker.initialize_books()
 
-    let dir = match book_worker.get_application_settings().get("book_location") {
-        Some(val) => val,
-        None => {
-            return None;
-        }
-    };
+    // let dir = match book_worker.get_application_settings().get("book_location") {
+    //     Some(val) => val,
+    //     None => {
+    //         return None;
+    //     }
+    // };
 
-    if !Path::new(&dir).exists() {
-        return None;
-    }
+    // if !Path::new(&dir).exists() {
+    //     return None;
+    // }
 
-    let epubs: Vec<String> = fs::read_dir(dir)
-        .unwrap()
-        .filter_map(|entry| {
-            let path = entry.unwrap().path();
-            match path {
-                p if p.is_file() && p.extension()? == "epub" => {
-                    Some(p.to_str().unwrap().to_owned())
-                }
-                _ => None,
-            }
-        })
-        .collect();
+    // let epubs: Vec<String> = fs::read_dir(dir)
+    //     .unwrap()
+    //     .filter_map(|entry| {
+    //         let path = entry.unwrap().path();
+    //         match path {
+    //             p if p.is_file() && p.extension()? == "epub" => {
+    //                 Some(p.to_str().unwrap().to_owned())
+    //             }
+    //             _ => None,
+    //         }
+    //     })
+    //     .collect();
 
-    let epub_amount = epubs.len();
+    // let epub_amount = epubs.len();
 
-    // TODO make sure default is used if this is none (not in this exact context)
+    // // TODO make sure default is used if this is none (not in this exact context)
 
-    if Path::new(&json_path).exists() {
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(&json_path);
+    // if Path::new(&json_path).exists() {
+    //     let file = OpenOptions::new()
+    //         .read(true)
+    //         .write(true)
+    //         .create(true)
+    //         .open(&json_path);
 
-        book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
-            Ok(data) => data,
-            Err(_) => Vec::new(),
-        };
+    //     book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
+    //         Ok(data) => data,
+    //         Err(_) => Vec::new(),
+    //     };
 
-        let current_length = book_json.len();
+    //     let current_length = book_json.len();
 
-        if current_length != epub_amount {
-            let new_books: Vec<(Book, usize)> = epubs
-                .par_iter()
-                .filter_map(|item| {
-                    let item_normalized = item.replace('\\', "/");
+    //     if current_length != epub_amount {
+    //         let new_books: Vec<(Book, usize)> = epubs
+    //             .par_iter()
+    //             .filter_map(|item| {
+    //                 let item_normalized = item.replace('\\', "/");
 
-                    match EpubDoc::new(&item_normalized) {
-                        Ok(ebook) => {
-                            let book_title = ebook.mdata("title")?;
-                            let index = chunk_binary_search_index(&book_json, &book_title)?;
+    //                 match EpubDoc::new(&item_normalized) {
+    //                     Ok(ebook) => {
+    //                         let book_title = ebook.mdata("title")?;
+    //                         let index = chunk_binary_search_index(&book_json, &book_title)?;
 
-                            let new_book = Book::new(None, item_normalized, book_title);
+    //                         let new_book = Book::new(None, item_normalized, book_title);
 
-                            return Some((new_book, index));
-                        }
-                        Err(e) => {
-                            println!("Book creation failed with: {}", e);
+    //                         return Some((new_book, index));
+    //                     }
+    //                     Err(e) => {
+    //                         println!("Book creation failed with: {}", e);
 
-                            return None;
-                        }
-                    }
-                })
-                .collect::<Vec<_>>();
+    //                         return None;
+    //                     }
+    //                 }
+    //             })
+    //             .collect::<Vec<_>>();
 
-            if new_books.len() != 0 {
-                let mut index_offset = 0;
-                for (book, index) in new_books {
-                    book_json.insert(index + index_offset, book);
-                    index_offset += 1;
-                }
+    //         if new_books.len() != 0 {
+    //             let mut index_offset = 0;
+    //             for (book, index) in new_books {
+    //                 book_json.insert(index + index_offset, book);
+    //                 index_offset += 1;
+    //             }
 
-                file_changes = true;
-            }
-        }
-    } else {
-        book_json = create_book_vec(&epubs);
-        file_changes = true;
-    }
+    //             file_changes = true;
+    //         }
+    //     }
+    // } else {
+    //     book_json = create_book_vec(&epubs);
+    //     file_changes = true;
+    // }
 
-    if file_changes {
-        let file = File::create(json_path).expect("JSON path should be defined, and a valid path");
+    // if file_changes {
+    //     let file = File::create(json_path).expect("JSON path should be defined, and a valid path");
 
-        serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist");
-    }
+    //     serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist");
+    // }
 
-    println!("Execution time: {} ms", start_time.elapsed().as_millis());
+    // println!("Execution time: {} ms", start_time.elapsed().as_millis());
 
-    Some(book_json)
+    // Some(json_path)
 }
 
 // pub fn initialize_books_start(

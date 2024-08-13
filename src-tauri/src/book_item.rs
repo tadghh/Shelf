@@ -9,7 +9,7 @@ use crate::{
     book::{
         bookio::{get_book_cover_image, write_cover_image, BookError},
         util::{
-            check_epub_resource, chunk_binary_search_index_load, current_context,
+            check_epub_resource, chunk_binary_search_index_load, current_context, get_cover_dir,
             sanitize_windows_filename,
         },
     },
@@ -20,7 +20,9 @@ use epub::doc::EpubDoc;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::from_reader;
+use sqlx::Sqlite;
 use tauri::{api::path::app_cache_dir, State};
+use tokio::runtime::Runtime;
 use xmltree::Element;
 
 use crate::xml::extract_image_source;
@@ -61,18 +63,6 @@ pub struct Book {
 }
 impl Book {
     pub fn new(cover_location: Option<String>, book_location: String, title: String) -> Book {
-        fn get_cover_dir() -> PathBuf {
-            let mut cache_dir =
-                app_cache_dir(&current_context()).expect("Failed to get cache directory");
-            cache_dir.push("cache");
-            cache_dir.push(env!("COVER_IMAGE_FOLDER_NAME"));
-            if let Err(err) = create_dir_all(&cache_dir) {
-                eprintln!("Error creating {:?} directory: {:?}", err, cache_dir);
-            }
-
-            cache_dir
-        }
-
         // Tries to write the cover image to 'cover_cache'
         // Otherwise uses default.jpg from /public
         let final_cover_location = match cover_location {
@@ -121,11 +111,25 @@ impl Book {
             title,
         }
     }
+    fn get_cover_dir(&self) -> PathBuf {
+        let mut cache_dir =
+            app_cache_dir(&current_context()).expect("Failed to get cache directory");
+        cache_dir.push("cache");
+        cache_dir.push(env!("COVER_IMAGE_FOLDER_NAME"));
+        if let Err(err) = create_dir_all(&cache_dir) {
+            eprintln!("Error creating {:?} directory: {:?}", err, cache_dir);
+        }
+
+        cache_dir
+    }
     pub fn get_title(&self) -> &String {
         &self.title
     }
-    pub fn get_cover_location(&self) -> &String {
-        &self.cover_location
+    pub fn get_cover_location(&self) -> String {
+        self.get_cover_dir()
+            .join(&self.cover_location)
+            .to_string_lossy()
+            .to_string()
     }
     pub fn get_book_location(&self) -> &String {
         &self.book_location
@@ -201,18 +205,29 @@ pub async fn insert_book_db(new_book: Book) -> Result<(), sqlx::Error> {
         .await?;
     Ok(())
 }
-pub async fn insert_book_db_batch(new_book_batch: Vec<Book>) -> Result<(), sqlx::Error> {
+pub fn insert_book_db_batch(new_book_batch: Vec<&Book>) -> Result<(), sqlx::Error> {
     // cover_location: String,
     //   book_location: String,
-    //   title: String,
-    sqlx::query("INSERT INTO books (cover_location, book_location, title) VALUES ($1, $2, $3)")
-        .bind(&new_book.cover_location)
-        .bind(&new_book.book_location)
-        .bind(new_book.title)
-        .execute(get_db())
-        .await?;
-    Ok(())
+    let runtime = Runtime::new().expect("Failed to create Tokio runtime");
+    runtime.block_on(async {
+        let mut query_builder: sqlx::QueryBuilder<Sqlite> =
+            sqlx::QueryBuilder::new("INSERT INTO books (cover_location, book_location, title) ");
+
+        //TODO Might hit bind limits if users 'accumulates' books
+        query_builder.push_values(new_book_batch.iter(), |mut b, book| {
+            b.push_bind(book.get_cover_location())
+                .push_bind(book.get_book_location())
+                .push_bind(book.get_title());
+        });
+
+        let query = query_builder.build();
+        query.execute(get_db()).await?;
+        // println!("{:?}", query);
+
+        Ok(())
+    })
 }
+
 /// The current crate used for handling Epubs has some issues with finding covers for uniquely structured books
 ///
 /// # Arguments
