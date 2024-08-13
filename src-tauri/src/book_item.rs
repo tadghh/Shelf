@@ -57,7 +57,7 @@ impl BookCache {
 
 #[derive(Serialize, Deserialize, Debug, Clone, sqlx::FromRow)]
 pub struct Book {
-    cover_location: String,
+    cover_location: Option<String>,
     book_location: String,
     title: String,
 }
@@ -66,7 +66,7 @@ impl Book {
         // Tries to write the cover image to 'cover_cache'
         // Otherwise uses default.jpg from /public
         let final_cover_location = match cover_location {
-            Some(cover_loc) => cover_loc,
+            Some(cover_loc) => Some(cover_loc),
             None => {
                 let epub_doc = EpubDoc::new(&book_location)
                     .map_err(|err| format!("Error opening EpubDoc: {}", err))
@@ -77,31 +77,28 @@ impl Book {
                 // why why why, am I supposed to make another object before the ensures everything is g? (unwrap)
                 let mut cover_name = epub_doc.mdata("title").unwrap();
                 cover_name.push_str(".jpg");
-
+                let cover_path_san = sanitize_windows_filename(cover_name.clone());
+                println!("{:?}", cover_path_san);
                 let cover_path = &covers_directory.join(sanitize_windows_filename(cover_name));
 
                 let cover_image_path = match get_book_cover_image(epub_doc) {
                     Ok(cover_data) => match write_cover_image(cover_data, cover_path) {
                         // I need the path as a string plz
-                        Ok(cover_path) => match cover_path.to_str() {
-                            Some(cover_string) => cover_string.to_string(),
-                            // even though we could write the cover image the 'path' was somehow None
-                            None => env!("DEFAULT_COVER_NAME").to_string(),
-                        },
+                        Ok(_) => Some(cover_path_san.clone()),
                         Err(_) => {
                             println!(
                                 "Wrote the file successfully but it was written into the abyss, perhaps a folder is missing from the 'cover_path'"
                             );
 
-                            env!("DEFAULT_COVER_NAME").to_string()
+                            None
                         }
                     },
                     Err(err) => {
                         println!("{}", err);
-                        env!("DEFAULT_COVER_NAME").to_string()
+                        None
                     }
                 };
-                cover_image_path
+                Some(cover_path_san)
             }
         };
 
@@ -126,16 +123,30 @@ impl Book {
         &self.title
     }
     pub fn get_cover_location(&self) -> String {
-        self.get_cover_dir()
-            .join(&self.cover_location)
-            .to_string_lossy()
-            .to_string()
+        match &self.cover_location {
+            Some(cover) => self
+                .get_cover_dir()
+                .join(cover)
+                .to_string_lossy()
+                .to_string(),
+            None => env!("DEFAULT_COVER_NAME").to_string(),
+        }
+    }
+    pub fn get_cover_filename(&self) -> &str {
+        println!("get {:?}", self.cover_location);
+        match &self.cover_location {
+            Some(cover) => cover,
+            None => env!("DEFAULT_COVER_NAME"),
+        }
     }
     pub fn get_book_location(&self) -> &String {
         &self.book_location
     }
 }
-
+#[tauri::command]
+pub fn get_cover_location_command(book: Book) -> String {
+    book.get_cover_location()
+}
 /// Looks for the books url inside the json file, returning its path
 ///
 /// # Arguments
@@ -198,9 +209,9 @@ pub async fn insert_book_db(new_book: Book) -> Result<(), sqlx::Error> {
     //   book_location: String,
     //   title: String,
     sqlx::query("INSERT INTO books (cover_location, book_location, title) VALUES ($1, $2, $3)")
-        .bind(&new_book.cover_location)
-        .bind(&new_book.book_location)
-        .bind(new_book.title)
+        .bind(new_book.get_cover_filename())
+        .bind(new_book.get_book_location())
+        .bind(new_book.get_title())
         .execute(get_db())
         .await?;
     Ok(())
@@ -215,7 +226,7 @@ pub fn insert_book_db_batch(new_book_batch: Vec<&Book>) -> Result<(), sqlx::Erro
 
         //TODO Might hit bind limits if users 'accumulates' books
         query_builder.push_values(new_book_batch.iter(), |mut b, book| {
-            b.push_bind(book.get_cover_location())
+            b.push_bind(book.get_cover_filename())
                 .push_bind(book.get_book_location())
                 .push_bind(book.get_title());
         });

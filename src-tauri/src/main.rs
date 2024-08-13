@@ -8,7 +8,7 @@ use app::*;
 
 use app::book::bookio::initialize_books;
 use app::{
-    book_item::load_book,
+    book_item::{get_cover_location_command, load_book},
     shelf::{
         change_configuration_option, get_configuration_option, reset_configuration,
         shelf_settings_values,
@@ -41,7 +41,8 @@ fn main() {
             change_configuration_option,
             get_configuration_option,
             shelf_settings_values,
-            reset_configuration
+            reset_configuration,
+            get_cover_location_command
         ])
         .run(tauri::generate_context!())
         .expect("shelf seems to have fallen over");
