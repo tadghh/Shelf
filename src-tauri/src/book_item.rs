@@ -14,6 +14,7 @@ use crate::{
         },
     },
     book_worker::BookWorker,
+    database::get_db,
 };
 use epub::doc::EpubDoc;
 use regex::Regex;
@@ -50,8 +51,9 @@ impl BookCache {
     }
 }
 
-/// Used for handling books on the front end
-#[derive(Serialize, Deserialize, Debug, Clone)]
+/// Used for handling books on the front end#[cfg_attr(feature = "ssr", derive(sqlx::FromRow))]
+
+#[derive(Serialize, Deserialize, Debug, Clone, sqlx::FromRow)]
 pub struct Book {
     cover_location: String,
     book_location: String,
@@ -167,6 +169,50 @@ pub fn load_book(title: String, state: State<'_, Mutex<BookWorker>>) -> Option<B
     None
 }
 
+pub async fn get_all_books() -> Result<Vec<Book>, sqlx::Error> {
+    let books = sqlx::query_as::<_, Book>("SELECT * FROM books")
+        .fetch_all(get_db())
+        .await?;
+
+    Ok(books)
+}
+// TODO should add a checksum to the db along with the books
+// I imagine indexing the checksum would be faster in comparison to ILIKE
+pub async fn get_blog_on_name(name: String) -> Result<Option<Book>, sqlx::Error> {
+    match sqlx::query_as("SELECT * FROM books WHERE title ILIKE $1")
+        .bind(&name)
+        .fetch_optional(get_db())
+        .await
+    {
+        Ok(book) => Ok(book),
+        Err(e) => Err(e),
+    }
+}
+
+pub async fn insert_book_db(new_book: Book) -> Result<(), sqlx::Error> {
+    // cover_location: String,
+    //   book_location: String,
+    //   title: String,
+    sqlx::query("INSERT INTO books (cover_location, book_location, title) VALUES ($1, $2, $3)")
+        .bind(&new_book.cover_location)
+        .bind(&new_book.book_location)
+        .bind(new_book.title)
+        .execute(get_db())
+        .await?;
+    Ok(())
+}
+pub async fn insert_book_db_batch(new_book_batch: Vec<Book>) -> Result<(), sqlx::Error> {
+    // cover_location: String,
+    //   book_location: String,
+    //   title: String,
+    sqlx::query("INSERT INTO books (cover_location, book_location, title) VALUES ($1, $2, $3)")
+        .bind(&new_book.cover_location)
+        .bind(&new_book.book_location)
+        .bind(new_book.title)
+        .execute(get_db())
+        .await?;
+    Ok(())
+}
 /// The current crate used for handling Epubs has some issues with finding covers for uniquely structured books
 ///
 /// # Arguments

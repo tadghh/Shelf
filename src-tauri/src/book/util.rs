@@ -1,6 +1,7 @@
 use epub::doc::EpubDoc;
 use regex::Regex;
 
+use sqlx::{query::Query, Execute, Sqlite, SqlitePool};
 use tauri::{generate_context, Config};
 
 use crate::book_item::Book;
@@ -167,4 +168,19 @@ pub fn check_epub_resource(
             key_regex.is_match(key) && mime_regex.is_match(&doc.get_resource(key).unwrap().1)
         })
         .map(|key| key.to_owned())
+}
+
+pub fn create_batch_query(batch_books: &Vec<Book>) -> Result<String, ()> {
+    let mut query_builder: sqlx::QueryBuilder<Sqlite> =
+        sqlx::QueryBuilder::new("INSERT INTO books (cover_location, book_location, title) ");
+
+    //TODO Might hit bind limits if users 'accumulates' books
+    query_builder.push_values(batch_books.iter(), |mut b, book| {
+        b.push_bind(book.get_cover_location())
+            .push_bind(book.get_book_location())
+            .push_bind(book.get_title());
+    });
+
+    let query = query_builder.into_sql();
+    Ok(query)
 }

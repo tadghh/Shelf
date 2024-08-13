@@ -222,12 +222,12 @@ impl BookWorker {
 
                                 let new_book = Book::new(None, item_normalized, book_title);
 
-                                return Some((new_book, index));
+                                Some((new_book, index))
                             }
                             Err(e) => {
                                 println!("Book creation failed with: {}", e);
 
-                                return None;
+                                None
                             }
                         }
                     })

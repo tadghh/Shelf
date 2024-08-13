@@ -7,22 +7,24 @@ use crate::book_worker::get_cache_dir;
 static DB: OnceCell<SqlitePool> = OnceCell::const_new();
 
 async fn create_pool() -> SqlitePool {
-    let database_url = env!("DATABASE_URL");
-    let db_location = get_cache_dir().join("book.db");
+    let database_name = env!("DATABASE_FILENAME");
+    let db_location = get_cache_dir().join(database_name);
     let options = SqliteConnectOptions::new()
-        .filename(db_location) // Use the correct database file path
+        .filename(&db_location) // Use the correct database file path
         .create_if_missing(true)
         .synchronous(sqlx::sqlite::SqliteSynchronous::Off)
         .journal_mode(sqlx::sqlite::SqliteJournalMode::Memory);
 
     let pool = SqlitePool::connect_with(options).await.expect(&format!(
-        "could not connect to database_url: {}",
-        database_url
+        "could not connect to database_url: {:?}",
+        db_location
     ));
-    sqlx::migrate!("./migrations")
+
+    sqlx::migrate!(".\\migrations")
         .run(&pool)
         .await
         .expect("migrations failed");
+
     pool
 }
 
