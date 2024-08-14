@@ -48,16 +48,28 @@ pub fn create_book_vec(items: &Vec<String>) -> Vec<Book> {
     let books: Vec<Book> = items
         .par_iter()
         .filter_map(|item| {
-            if let Ok(book) = EpubDoc::new(item) {
-                let title = book.mdata("title")?;
-                Some(Book::new(None, item.to_string(), title))
-            } else {
-                None
+            let item_normalized = item.replace('\\', "/");
+
+            match EpubDoc::new(&item_normalized) {
+                Ok(ebook) => {
+                    let book_title = ebook.mdata("title")?;
+
+                    let new_book = Book::new(None, item_normalized, book_title);
+
+                    Some(new_book)
+                }
+                Err(e) => {
+                    println!("Book creation failed with: {}", e);
+
+                    None
+                }
             }
         })
         .collect();
 
     let mut sorted_books = books;
+
+    // TODO this might cause issues, only some data is sorted on the front end
     sorted_books.sort_by(|a, b| a.get_title().cmp(&b.get_title()));
 
     sorted_books

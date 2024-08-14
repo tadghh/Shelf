@@ -1,21 +1,16 @@
 use std::{
     collections::HashMap,
-    fs::{self, create_dir_all, File, OpenOptions},
+    fs::{self, create_dir_all, OpenOptions},
     io::{BufReader, Error, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     time::Instant,
 };
 
-use epub::doc::EpubDoc;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use tauri::api::path::{app_cache_dir, app_config_dir};
 
 use crate::{
-    book::{
-        bookio::create_book_vec,
-        util::{chunk_binary_search_index, current_context},
-    },
-    book_item::{insert_book_db_batch, Book, BookCache},
+    book::{bookio::create_book_vec, util::current_context},
+    book_item::{get_all_books, insert_book_db_batch, Book, BookCache},
     shelf::shelf_settings_values,
 };
 
@@ -76,20 +71,20 @@ impl BookWorker {
         let pecker = self.current_book_cache.as_ref().unwrap();
         &pecker
     }
+    // pub fn get_book(&self) -> &BookCache {
+    //     let pecker = self.current_book_cache.as_ref().unwrap();
+    //     &pecker
+    // }
 
-    pub fn get_book_cache_test(&self) -> &BookCache {
-        let pecker = self.current_book_cache.as_ref().unwrap();
-        &pecker
-    }
     pub fn update_book_cache(&mut self, new_books: Vec<Book>) {
         let pecker = self.current_book_cache.as_mut().unwrap();
         pecker.update_books(new_books);
     }
 
-    pub fn update_cache_json_path(&mut self, json_path: String) {
-        let pecker = self.current_book_cache.as_mut().unwrap();
-        pecker.update_json_path(json_path)
-    }
+    // pub fn update_cache_json_path(&mut self, json_path: String) {
+    //     let pecker = self.current_book_cache.as_mut().unwrap();
+    //     pecker.update_json_path(json_path)
+    // }
     pub fn restore_default_settings(&mut self) {
         let default_settings = shelf_settings_values();
 
@@ -160,12 +155,12 @@ impl BookWorker {
     pub fn initialize_books(&self) -> Option<Vec<Book>> {
         let start_time = Instant::now();
 
-        let mut file_changes = false;
+        //  let mut file_changes = false;
 
-        let mut book_json: Vec<Book>;
+        let current_books: Vec<Book>;
         //let book_worker = state.lock().unwrap();
 
-        let json_path: String = self.get_json_path();
+        // let json_path: String = self.get_json_path();
 
         let dir = match self.get_application_settings().get("book_location") {
             Some(val) => val,
@@ -173,12 +168,12 @@ impl BookWorker {
                 return None;
             }
         };
-
+        // TODO bug the db could still have books
         if !Path::new(&dir).exists() {
             return None;
         }
 
-        let epubs: Vec<String> = fs::read_dir(dir)
+        let epub_paths: Vec<String> = fs::read_dir(dir)
             .unwrap()
             .filter_map(|entry| {
                 let path = entry.unwrap().path();
@@ -191,87 +186,138 @@ impl BookWorker {
             })
             .collect();
 
-        let epub_amount = epubs.len();
+        let epub_amount = epub_paths.len();
 
         // TODO make sure default is used if this is none (not in this exact context)
 
-        if Path::new(&json_path).exists() {
-            let file = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .open(&json_path);
+        // if Path::new(&json_path).exists() {
+        // let file = OpenOptions::new()
+        //     .read(true)
+        //     .write(true)
+        //     .create(true)
+        //     .open(&json_path);
+        let new_books = create_book_vec(&epub_paths);
 
-            book_json = match serde_json::from_reader(BufReader::new(file.unwrap())) {
-                Ok(data) => data,
-                Err(_) => Vec::new(),
-            };
+        current_books = match get_all_books() {
+            Ok(books) => books,
+            Err(_) => todo!(),
+        };
 
-            let current_length = book_json.len();
+        // current_books = match serde_json::from_reader(BufReader::new(file.unwrap())) {
+        //     Ok(data) => data,
+        //     Err(_) => Vec::new(),
+        // };
 
-            if current_length != epub_amount {
-                let new_books: Vec<(Book, usize)> = epubs
-                    .par_iter()
-                    .filter_map(|item| {
-                        let item_normalized = item.replace('\\', "/");
-
-                        match EpubDoc::new(&item_normalized) {
-                            Ok(ebook) => {
-                                let book_title = ebook.mdata("title")?;
-                                let index = chunk_binary_search_index(&book_json, &book_title)?;
-
-                                let new_book = Book::new(None, item_normalized, book_title);
-
-                                Some((new_book, index))
-                            }
-                            Err(e) => {
-                                println!("Book creation failed with: {}", e);
-
-                                None
-                            }
-                        }
-                    })
-                    .collect::<Vec<_>>();
-
-                if new_books.len() != 0 {
-                    let mut index_offset = 0;
-                    for (book, index) in &new_books {
-                        book_json.insert(index + index_offset, book.to_owned());
-                        index_offset += 1;
-                    }
-                    let book_only: Vec<&Book> = new_books.iter().map(|(book, _)| book).collect();
-
-                    match insert_book_db_batch(book_only) {
-                        Ok(_) => println!("Insert worked"),
-                        Err(_) => println!("INsert not so work"),
-                    };
-                    file_changes = true;
-                }
-            } else {
-                println! {"No new"}
+        let current_length = current_books.len();
+        match current_length {
+            0 => {
+                let new_books_refs: Vec<&Book> = new_books.iter().map(|book| book).collect();
+                match insert_book_db_batch(new_books_refs) {
+                    Ok(_) => println!("Insert worked"),
+                    Err(_) => println!("INsert not so work"),
+                };
+                println!("Execution time: {} ms", start_time.elapsed().as_millis());
+                Some(new_books)
             }
-        } else {
-            book_json = create_book_vec(&epubs);
-            let book_refs: Vec<&Book> = book_json.iter().collect();
-            match insert_book_db_batch(book_refs) {
-                Ok(_) => println!("Insert worked"),
-                Err(_) => println!("INsert not so work"),
-            };
-            file_changes = true;
+            _ if current_length != epub_amount => {
+                let unique_new_books: Vec<_> = new_books
+                    .into_iter()
+                    .filter(|book| !current_books.contains(book))
+                    .collect();
+                if unique_new_books.len() != 0 {
+                    // handled lining up the data to 'skip' sorting it
+                    // let mut index_offset = 0;
+                    // for (book, index) in &new_books {
+                    //     current_books.insert(index + index_offset, book.to_owned());
+                    //     index_offset += 1;
+                    // }
+                    let new_books: Vec<&Book> = unique_new_books.iter().map(|book| book).collect();
+
+                    match insert_book_db_batch(new_books) {
+                        Ok(_) => println!("Insert worked"),
+                        Err(_) => println!(
+                            "INsert not so work maybe book with same title but diff author"
+                        ),
+                    };
+                    println!("Execution time: {} ms", start_time.elapsed().as_millis());
+                    return Some(unique_new_books);
+                }
+                println!("epub length different but no new books");
+                println!("Execution time: {} ms", start_time.elapsed().as_millis());
+                Some(current_books)
+            }
+            _ => {
+                println!("no new books");
+                println!("Execution time: {} ms", start_time.elapsed().as_millis());
+                Some(current_books)
+            }
         }
+        // let epub_reader = EpubDoc::new
+        // if current_length != epub_amount {
+        // let new_books: Vec<(Book, usize)> = epub_paths
+        //     .par_iter()
+        //     .filter_map(|item| {
+        //         let item_normalized = item.replace('\\', "/");
 
-        if file_changes {
-            let file =
-                File::create(json_path).expect("JSON path should be defined, and a valid path");
+        //         match EpubDoc::new(&item_normalized) {
+        //             Ok(ebook) => {
+        //                 let book_title = ebook.mdata("title")?;
+        //                 let index = chunk_binary_search_index(&current_books, &book_title)?;
 
-            serde_json::to_writer_pretty(file, &book_json).expect("The book JSON should exist");
-        }
+        //                 let new_book = Book::new(None, item_normalized, book_title);
 
-        println!("Execution time: {} ms", start_time.elapsed().as_millis());
+        //                 Some((new_book, index))
+        //             }
+        //             Err(e) => {
+        //                 println!("Book creation failed with: {}", e);
 
-        Some(book_json)
+        //                 None
+        //             }
+        //         }
+        //     })
+        //     .collect::<Vec<_>>();
+        // let new_books = create_book_vec(&epub_paths);
+        // if new_books.len() != 0 {
+        //     // handled lining up the data to 'skip' sorting it
+        //     // let mut index_offset = 0;
+        //     // for (book, index) in &new_books {
+        //     //     current_books.insert(index + index_offset, book.to_owned());
+        //     //     index_offset += 1;
+        //     // }
+        //     let new_books: Vec<&Book> = new_books.iter().map(|book| book).collect();
+
+        //     match insert_book_db_batch(new_books) {
+        //         Ok(_) => println!("Insert worked"),
+        //         Err(_) => println!("INsert not so work"),
+        //     };
+        //     file_changes = true;
+        //  }
+        // } else {
+        //     println! {"No new"}
+        // }
+        // } else {
+        //     current_books = create_book_vec(&epub_paths);
+        //     let book_refs: Vec<&Book> = current_books.iter().collect();
+        //     match insert_book_db_batch(book_refs) {
+        //         Ok(_) => println!("Insert worked"),
+        //         Err(_) => println!("INsert not so work"),
+        //     };
+        //     file_changes = true;
+        // }
+
+        // if file_changes {
+        //     let file =
+        //         File::create(json_path).expect("JSON path should be defined, and a valid path");
+
+        //     serde_json::to_writer_pretty(file, &current_books).expect("The book JSON should exist");
+        // }
+        //
+        // println!("Execution time: {} ms", start_time.elapsed().as_millis());
+
+        // Some(current_books)
     }
 }
+
 pub fn get_config_dir() -> PathBuf {
     let mut full_config_path =
         app_config_dir(&current_context()).expect("Failed to get config directory");

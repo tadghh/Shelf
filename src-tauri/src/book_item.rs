@@ -1,17 +1,14 @@
 use std::{
-    fs::{create_dir_all, File, OpenOptions},
+    fs::{create_dir_all, File},
     io::BufReader,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::Mutex,
 };
 
 use crate::{
     book::{
         bookio::{get_book_cover_image, write_cover_image, BookError},
-        util::{
-            check_epub_resource, chunk_binary_search_index_load, current_context, get_cover_dir,
-            sanitize_windows_filename,
-        },
+        util::{check_epub_resource, current_context, get_cover_dir, sanitize_windows_filename},
     },
     book_worker::BookWorker,
     database::get_db,
@@ -19,7 +16,6 @@ use crate::{
 use epub::doc::EpubDoc;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::from_reader;
 use sqlx::Sqlite;
 use tauri::{api::path::app_cache_dir, State};
 use tokio::runtime::Runtime;
@@ -27,29 +23,26 @@ use xmltree::Element;
 
 use crate::xml::extract_image_source;
 
+// TODO just make it empty vector instead of usig option
 /// This is used for organization
 pub struct BookCache {
     books: Option<Vec<Book>>,
-    json_path: String,
 }
 
 impl BookCache {
     /// Used to update the contents of the book_cache.json file
-    pub fn new(books: Option<Vec<Book>>, json_path: String) -> BookCache {
-        BookCache { books, json_path }
+    pub fn new(books: Option<Vec<Book>>) -> BookCache {
+        BookCache { books }
     }
     pub fn update_books(&mut self, new_books: Vec<Book>) {
         self.books = Some(new_books);
     }
 
-    pub fn get_json_path(&self) -> &String {
-        &self.json_path
-    }
     pub fn get_books(&self) -> &Vec<Book> {
         self.books.as_ref().unwrap()
     }
-    pub fn update_json_path(&mut self, json_path: String) {
-        self.json_path = json_path;
+    pub fn find_by_title(&self, title: &str) -> Option<&Book> {
+        self.books.as_ref()?.iter().find(|book| book.title == title)
     }
 }
 
@@ -60,6 +53,13 @@ pub struct Book {
     cover_location: Option<String>,
     book_location: String,
     title: String,
+}
+
+// Authors are creative right? surely there arent two books with the same title
+impl PartialEq for Book {
+    fn eq(&self, other: &Self) -> bool {
+        self.title == other.title
+    }
 }
 impl Book {
     pub fn new(cover_location: Option<String>, book_location: String, title: String) -> Book {
@@ -81,7 +81,7 @@ impl Book {
                 println!("{:?}", cover_path_san);
                 let cover_path = &covers_directory.join(sanitize_windows_filename(cover_name));
 
-                let cover_image_path = match get_book_cover_image(epub_doc) {
+                _ = match get_book_cover_image(epub_doc) {
                     Ok(cover_data) => match write_cover_image(cover_data, cover_path) {
                         // I need the path as a string plz
                         Ok(_) => Some(cover_path_san.clone()),
@@ -155,53 +155,85 @@ pub fn get_cover_location_command(book: Book) -> String {
 ///
 #[tauri::command]
 pub fn load_book(title: String, state: State<'_, Mutex<BookWorker>>) -> Option<Book> {
-    let mut book_worker = state.lock().unwrap();
-    let book_json_cache = book_worker.get_book_cache().get_json_path().clone();
+    let book_worker = state.lock().unwrap();
+    let book_cache = book_worker.get_book_cache();
 
-    if Path::new(&book_json_cache).exists() {
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(book_json_cache);
-
-        let new_books: Vec<Book> = match from_reader(BufReader::new(file.unwrap())) {
-            Ok(data) => data,
-            Err(_) => Vec::new(),
-        };
-        book_worker.update_book_cache(new_books);
-        let books = book_worker.get_book_cache().get_books();
-        let book_index = chunk_binary_search_index_load(books, &title);
-        //TODO This should be a result (this method, we cant load "None" book)
-        match book_index {
-            Some(book_index) => return books.get(book_index).cloned(),
-            None => return None,
-        }
-    } else {
-        println!("JSON File missing");
+    match book_cache.find_by_title(&title) {
+        Some(book) => Some(book.clone()), // Clone the book if found
+        None => None,
     }
+    // if Path::new(&book_json_cache).exists() {
+    //     let file = OpenOptions::new()
+    //         .read(true)
+    //         .write(true)
+    //         .create(true)
+    //         .open(book_json_cache);
 
-    None
+    //     let new_books: Vec<Book> = match from_reader(BufReader::new(file.unwrap())) {
+    //         Ok(data) => data,
+    //         Err(_) => Vec::new(),
+    //     };
+    //     book_worker.update_book_cache(new_books);
+    //     let books = book_worker.get_book_cache().get_books();
+    //     let book_index = chunk_binary_search_index_load(books, &title);
+    //     //TODO This should be a result (this method, we cant load "None" book)
+    //     match book_index {
+    //         Some(book_index) => return books.get(book_index).cloned(),
+    //         None => return None,
+    //     }
+    // } else {
+    //     println!("JSON File missing");
+    // }
+    // This handles an edge case where books are added manually through the json file
+    // if Path::new(&book_json_cache).exists() {
+    //     let file = OpenOptions::new()
+    //         .read(true)
+    //         .write(true)
+    //         .create(true)
+    //         .open(book_json_cache);
+
+    //     let new_books: Vec<Book> = match from_reader(BufReader::new(file.unwrap())) {
+    //         Ok(data) => data,
+    //         Err(_) => Vec::new(),
+    //     };
+    //     book_worker.update_book_cache(new_books);
+    //     let books = book_worker.get_book_cache().get_books();
+    //     let book_index = chunk_binary_search_index_load(books, &title);
+    //     //TODO This should be a result (this method, we cant load "None" book)
+    //     match book_index {
+    //         Some(book_index) => return books.get(book_index).cloned(),
+    //         None => return None,
+    //     }
+    // } else {
+    //     println!("JSON File missing");
+    // }
+
+    // None
 }
 
-pub async fn get_all_books() -> Result<Vec<Book>, sqlx::Error> {
-    let books = sqlx::query_as::<_, Book>("SELECT * FROM books")
-        .fetch_all(get_db())
-        .await?;
-
-    Ok(books)
+pub fn get_all_books() -> Result<Vec<Book>, sqlx::Error> {
+    let runtime = Runtime::new().expect("Failed to create Tokio runtime");
+    runtime.block_on(async {
+        let books = sqlx::query_as::<_, Book>("SELECT * FROM books")
+            .fetch_all(get_db())
+            .await?;
+        Ok(books)
+    })
 }
 // TODO should add a checksum to the db along with the books
 // I imagine indexing the checksum would be faster in comparison to ILIKE
-pub async fn get_blog_on_name(name: String) -> Result<Option<Book>, sqlx::Error> {
-    match sqlx::query_as("SELECT * FROM books WHERE title ILIKE $1")
-        .bind(&name)
-        .fetch_optional(get_db())
-        .await
-    {
-        Ok(book) => Ok(book),
-        Err(e) => Err(e),
-    }
+pub fn get_book_on_name(name: String) -> Result<Option<Book>, sqlx::Error> {
+    let runtime = Runtime::new().expect("Failed to create Tokio runtime");
+    runtime.block_on(async {
+        match sqlx::query_as("SELECT * FROM books WHERE title ILIKE $1")
+            .bind(&name)
+            .fetch_optional(get_db())
+            .await
+        {
+            Ok(book) => Ok(book),
+            Err(e) => Err(e),
+        }
+    })
 }
 
 pub async fn insert_book_db(new_book: Book) -> Result<(), sqlx::Error> {

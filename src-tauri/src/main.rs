@@ -27,7 +27,7 @@ fn main() {
     });
     let mut worker = BookWorker::new(load_settings(), None);
 
-    let book_cache = BookCache::new(worker.initialize_books(), worker.get_json_path());
+    let book_cache = BookCache::new(worker.initialize_books());
 
     worker.set_book_cache(book_cache);
 
