@@ -1,4 +1,4 @@
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePool};
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqliteSynchronous};
 
 use tokio::sync::OnceCell;
 
@@ -9,12 +9,12 @@ static DB: OnceCell<SqlitePool> = OnceCell::const_new();
 async fn create_pool() -> SqlitePool {
     let database_name = env!("DATABASE_FILENAME");
     let db_location = get_cache_dir().join(database_name);
-    println!("{:?}", db_location.clone());
+
     let options = SqliteConnectOptions::new()
         .filename(&db_location) // Use the correct database file path
         .create_if_missing(true)
-        .synchronous(sqlx::sqlite::SqliteSynchronous::Off)
-        .journal_mode(sqlx::sqlite::SqliteJournalMode::Memory);
+        .synchronous(SqliteSynchronous::Off)
+        .journal_mode(SqliteJournalMode::Memory);
 
     let pool = SqlitePool::connect_with(options).await.expect(&format!(
         "could not connect to database_url: {:?}",

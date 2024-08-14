@@ -45,16 +45,10 @@ pub fn get_configuration_option(
     option_name: String,
     state: State<'_, Mutex<BookWorker>>,
 ) -> Option<String> {
-    // load_settings_into_memory();
     let book_worker = state.lock().unwrap();
-    let application_settings = book_worker.get_application_settings().clone();
+    let application_settings = book_worker.get_application_settings();
 
     let settings_value = application_settings.get(&option_name);
-    // let settings_value = unsafe {
-    //     SETTINGS_MAP
-    //         .as_ref()
-    //         .and_then(|map| map.get(&option_name).cloned())
-    // };
 
     settings_value.cloned()
 }
@@ -83,23 +77,19 @@ pub fn change_configuration_option(
 #[tauri::command(rename_all = "snake_case")]
 pub fn reset_configuration(state: State<'_, Mutex<BookWorker>>) -> Result<(), String> {
     let mut book_worker = state.lock().unwrap();
-
-    //TODO: Handle these errors on front end, let user know it didnt work
-    //Delete book json and covers
-    println!("{:?}", get_settings_path());
-    println!("{:?}", book_worker.get_cover_image_directory());
+    // TODO use array for errors
     //let mut book_worker = state.lock().unwrap();
     let cache_dir = get_cache_dir();
     let _ = remove_dir_all(cache_dir);
 
     //Delete settings file
     //If its an error thats okay because we remake the settings file anyway
-    println!("{:?}", get_settings_path());
     let _ = remove_file(get_settings_path());
 
     //call default settings
     book_worker.restore_default_settings();
     book_worker.import_application_settings(load_settings());
+    // TODO reset db
 
     Ok(())
 }

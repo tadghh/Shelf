@@ -61,6 +61,7 @@ impl PartialEq for Book {
         self.title == other.title
     }
 }
+
 impl Book {
     pub fn new(cover_location: Option<String>, book_location: String, title: String) -> Book {
         // Tries to write the cover image to 'cover_cache'
@@ -143,10 +144,12 @@ impl Book {
         &self.book_location
     }
 }
+
 #[tauri::command]
 pub fn get_cover_location_command(book: Book) -> String {
     book.get_cover_location()
 }
+
 /// Looks for the books url inside the json file, returning its path
 ///
 /// # Arguments
@@ -159,56 +162,9 @@ pub fn load_book(title: String, state: State<'_, Mutex<BookWorker>>) -> Option<B
     let book_cache = book_worker.get_book_cache();
 
     match book_cache.find_by_title(&title) {
-        Some(book) => Some(book.clone()), // Clone the book if found
+        Some(book) => Some(book.clone()),
         None => None,
     }
-    // if Path::new(&book_json_cache).exists() {
-    //     let file = OpenOptions::new()
-    //         .read(true)
-    //         .write(true)
-    //         .create(true)
-    //         .open(book_json_cache);
-
-    //     let new_books: Vec<Book> = match from_reader(BufReader::new(file.unwrap())) {
-    //         Ok(data) => data,
-    //         Err(_) => Vec::new(),
-    //     };
-    //     book_worker.update_book_cache(new_books);
-    //     let books = book_worker.get_book_cache().get_books();
-    //     let book_index = chunk_binary_search_index_load(books, &title);
-    //     //TODO This should be a result (this method, we cant load "None" book)
-    //     match book_index {
-    //         Some(book_index) => return books.get(book_index).cloned(),
-    //         None => return None,
-    //     }
-    // } else {
-    //     println!("JSON File missing");
-    // }
-    // This handles an edge case where books are added manually through the json file
-    // if Path::new(&book_json_cache).exists() {
-    //     let file = OpenOptions::new()
-    //         .read(true)
-    //         .write(true)
-    //         .create(true)
-    //         .open(book_json_cache);
-
-    //     let new_books: Vec<Book> = match from_reader(BufReader::new(file.unwrap())) {
-    //         Ok(data) => data,
-    //         Err(_) => Vec::new(),
-    //     };
-    //     book_worker.update_book_cache(new_books);
-    //     let books = book_worker.get_book_cache().get_books();
-    //     let book_index = chunk_binary_search_index_load(books, &title);
-    //     //TODO This should be a result (this method, we cant load "None" book)
-    //     match book_index {
-    //         Some(book_index) => return books.get(book_index).cloned(),
-    //         None => return None,
-    //     }
-    // } else {
-    //     println!("JSON File missing");
-    // }
-
-    // None
 }
 
 pub fn get_all_books() -> Result<Vec<Book>, sqlx::Error> {
@@ -220,6 +176,7 @@ pub fn get_all_books() -> Result<Vec<Book>, sqlx::Error> {
         Ok(books)
     })
 }
+
 // TODO should add a checksum to the db along with the books
 // I imagine indexing the checksum would be faster in comparison to ILIKE
 pub fn get_book_on_name(name: String) -> Result<Option<Book>, sqlx::Error> {
@@ -248,6 +205,7 @@ pub async fn insert_book_db(new_book: Book) -> Result<(), sqlx::Error> {
         .await?;
     Ok(())
 }
+
 pub fn insert_book_db_batch(new_book_batch: Vec<&Book>) -> Result<(), sqlx::Error> {
     // cover_location: String,
     //   book_location: String,
@@ -326,30 +284,3 @@ pub fn unique_find_cover(
         },
     }
 }
-
-// pub fn create_cover(book_directory: String, write_directory: &PathBuf) -> Result<PathBuf, ()> {
-//     let mut doc =
-//         EpubDoc::new(book_directory).map_err(|err| format!("Error opening EpubDoc: {}", err))?;
-
-//     //The below get_cover method only looks for a certain structure of cover image
-
-//     //Look for the cover_id in the epub, we are just looking for any property containing the word cover
-//     //This is because EpubDoc looks for an exact string, and some epubs dont contain it
-//     // let mimetype = r"image/jpeg";
-//     if let Some(cover_id) = check_epub_resource(
-//         Regex::new(r"(?i)cover").unwrap(),
-//         Regex::new(r"image/jpeg").unwrap(),
-//         &epub_resources,
-//         &mut doc,
-//     ) {
-//         let cover: Option<(Vec<u8>, String)> = doc.get_resource(&cover_id);
-
-//         if let Err(err) = write_cover_image(cover, cover_path) {
-//             return Ok(err.to_path_buf());
-//         }
-//     } else if let Err(err) = find_cover(doc, cover_path) {
-//         return Ok(err);
-//     }
-
-//     Ok(cover_path.to_path_buf())
-// }

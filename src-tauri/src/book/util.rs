@@ -18,6 +18,7 @@ use std::{
 pub fn current_context() -> Config {
     generate_context!().config().clone()
 }
+
 /// Removes special characters from a given string and returns it
 /// Some book titles contain characters that aren't compatible when used as filenames
 ///
@@ -41,34 +42,6 @@ pub fn sanitize_windows_filename(filename: String) -> String {
 
     sanitized
 }
-
-/// Encodes the data of a give file, returning the encoded data
-/// This is to get around CORS issues
-///
-/// # Arguments
-///
-/// * `filepath` - The file to encode
-///
-// #[tauri::command(rename_all = "snake_case")]
-// pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
-//     //TODO Archive this
-//     let mut buffer = Vec::new();
-
-//     //Refactor this
-//     let mut file = match File::open(file_path) {
-//         Ok(file) => file,
-//         Err(_) => {
-//             return Err("There was an issue opening the file".to_string());
-//         }
-//     };
-
-//     file.read_to_end(&mut buffer)
-//         .expect("There was an issue with the buffer");
-
-//     // Encode the file data as base64
-//     let base64_data = general_purpose::STANDARD.encode(&buffer);
-//     Ok(base64_data)
-// }
 
 /// Finds a chunk in the dataset that starts with the same letter as the key, returning the found value
 /// One this chunk is found we binary search within that section, theoretically faster
@@ -191,6 +164,7 @@ pub fn create_batch_query(batch_books: Vec<&Book>) -> Result<String, ()> {
     println!("{:?}", query);
     Ok(query)
 }
+
 pub fn get_cover_dir() -> PathBuf {
     let mut cache_dir = app_cache_dir(&current_context()).expect("Failed to get cache directory");
     cache_dir.push("cache");

@@ -1,9 +1,8 @@
 use std::{
     collections::HashMap,
-    fs::{self, create_dir_all, OpenOptions},
+    fs::{self, create_dir_all, File, OpenOptions},
     io::{BufReader, Error, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
-    time::Instant,
 };
 
 use tauri::api::path::{app_cache_dir, app_config_dir};
@@ -30,18 +29,27 @@ impl BookWorker {
             current_book_cache,
         }
     }
+
+    fn get_cache_dir(&self) -> PathBuf {
+        let mut cache_dir =
+            app_cache_dir(&current_context()).expect("Failed to get cache directory");
+        cache_dir.push("cache");
+        if let Err(err) = create_dir_all(&cache_dir) {
+            eprintln!("Error creating cache directory: {:?}", err);
+        }
+
+        cache_dir
+    }
+
     /// Creates a settings file and fills it with mostly valid default values.
 
     pub fn set_book_cache(&mut self, new_book_cache: BookCache) {
         self.current_book_cache = Some(new_book_cache)
     }
+
     pub fn import_application_settings(&mut self, new_book_cache: HashMap<String, String>) {
         self.application_user_settings = new_book_cache
     }
-
-    // pub fn get_settings_path(&self) -> PathBuf {
-    //     get_config_dir().join(self.get_settings_file_name())
-    // }
 
     pub fn get_json_path(&self) -> String {
         self.get_cache_dir()
@@ -49,6 +57,7 @@ impl BookWorker {
             .to_string_lossy()
             .to_string()
     }
+
     pub fn get_config_folder_name(&self) -> String {
         env!("CONFIG_FLDR_NAME").to_string()
     }
@@ -71,20 +80,12 @@ impl BookWorker {
         let pecker = self.current_book_cache.as_ref().unwrap();
         &pecker
     }
-    // pub fn get_book(&self) -> &BookCache {
-    //     let pecker = self.current_book_cache.as_ref().unwrap();
-    //     &pecker
-    // }
 
     pub fn update_book_cache(&mut self, new_books: Vec<Book>) {
         let pecker = self.current_book_cache.as_mut().unwrap();
         pecker.update_books(new_books);
     }
 
-    // pub fn update_cache_json_path(&mut self, json_path: String) {
-    //     let pecker = self.current_book_cache.as_mut().unwrap();
-    //     pecker.update_json_path(json_path)
-    // }
     pub fn restore_default_settings(&mut self) {
         let default_settings = shelf_settings_values();
 
@@ -92,19 +93,11 @@ impl BookWorker {
             self.update_application_setting(lowercase_name.to_string(), default_value.to_string());
         }
     }
-    fn get_cache_dir(&self) -> PathBuf {
-        let mut cache_dir =
-            app_cache_dir(&current_context()).expect("Failed to get cache directory");
-        cache_dir.push("cache");
-        if let Err(err) = create_dir_all(&cache_dir) {
-            eprintln!("Error creating cache directory: {:?}", err);
-        }
 
-        cache_dir
-    }
     pub fn get_covers_path(&self) -> PathBuf {
         self.get_cache_dir().join(env!("COVER_IMAGE_FOLDER_NAME"))
     }
+
     pub fn update_application_setting(&mut self, option_name: String, value: String) {
         self.application_user_settings
             .insert(option_name.clone(), value.clone());
@@ -152,15 +145,9 @@ impl BookWorker {
             file.write_all(new_line.as_bytes()).unwrap();
         }
     }
+
     pub fn initialize_books(&self) -> Option<Vec<Book>> {
-        let start_time = Instant::now();
-
-        //  let mut file_changes = false;
-
         let current_books: Vec<Book>;
-        //let book_worker = state.lock().unwrap();
-
-        // let json_path: String = self.get_json_path();
 
         let dir = match self.get_application_settings().get("book_location") {
             Some(val) => val,
@@ -188,25 +175,12 @@ impl BookWorker {
 
         let epub_amount = epub_paths.len();
 
-        // TODO make sure default is used if this is none (not in this exact context)
-
-        // if Path::new(&json_path).exists() {
-        // let file = OpenOptions::new()
-        //     .read(true)
-        //     .write(true)
-        //     .create(true)
-        //     .open(&json_path);
         let new_books = create_book_vec(&epub_paths);
 
         current_books = match get_all_books() {
             Ok(books) => books,
             Err(_) => todo!(),
         };
-
-        // current_books = match serde_json::from_reader(BufReader::new(file.unwrap())) {
-        //     Ok(data) => data,
-        //     Err(_) => Vec::new(),
-        // };
 
         let current_length = current_books.len();
         match current_length {
@@ -216,7 +190,6 @@ impl BookWorker {
                     Ok(_) => println!("Insert worked"),
                     Err(_) => println!("INsert not so work"),
                 };
-                println!("Execution time: {} ms", start_time.elapsed().as_millis());
                 Some(new_books)
             }
             _ if current_length != epub_amount => {
@@ -225,12 +198,6 @@ impl BookWorker {
                     .filter(|book| !current_books.contains(book))
                     .collect();
                 if unique_new_books.len() != 0 {
-                    // handled lining up the data to 'skip' sorting it
-                    // let mut index_offset = 0;
-                    // for (book, index) in &new_books {
-                    //     current_books.insert(index + index_offset, book.to_owned());
-                    //     index_offset += 1;
-                    // }
                     let new_books: Vec<&Book> = unique_new_books.iter().map(|book| book).collect();
 
                     match insert_book_db_batch(new_books) {
@@ -239,82 +206,16 @@ impl BookWorker {
                             "INsert not so work maybe book with same title but diff author"
                         ),
                     };
-                    println!("Execution time: {} ms", start_time.elapsed().as_millis());
                     return Some(unique_new_books);
                 }
                 println!("epub length different but no new books");
-                println!("Execution time: {} ms", start_time.elapsed().as_millis());
                 Some(current_books)
             }
             _ => {
                 println!("no new books");
-                println!("Execution time: {} ms", start_time.elapsed().as_millis());
                 Some(current_books)
             }
         }
-        // let epub_reader = EpubDoc::new
-        // if current_length != epub_amount {
-        // let new_books: Vec<(Book, usize)> = epub_paths
-        //     .par_iter()
-        //     .filter_map(|item| {
-        //         let item_normalized = item.replace('\\', "/");
-
-        //         match EpubDoc::new(&item_normalized) {
-        //             Ok(ebook) => {
-        //                 let book_title = ebook.mdata("title")?;
-        //                 let index = chunk_binary_search_index(&current_books, &book_title)?;
-
-        //                 let new_book = Book::new(None, item_normalized, book_title);
-
-        //                 Some((new_book, index))
-        //             }
-        //             Err(e) => {
-        //                 println!("Book creation failed with: {}", e);
-
-        //                 None
-        //             }
-        //         }
-        //     })
-        //     .collect::<Vec<_>>();
-        // let new_books = create_book_vec(&epub_paths);
-        // if new_books.len() != 0 {
-        //     // handled lining up the data to 'skip' sorting it
-        //     // let mut index_offset = 0;
-        //     // for (book, index) in &new_books {
-        //     //     current_books.insert(index + index_offset, book.to_owned());
-        //     //     index_offset += 1;
-        //     // }
-        //     let new_books: Vec<&Book> = new_books.iter().map(|book| book).collect();
-
-        //     match insert_book_db_batch(new_books) {
-        //         Ok(_) => println!("Insert worked"),
-        //         Err(_) => println!("INsert not so work"),
-        //     };
-        //     file_changes = true;
-        //  }
-        // } else {
-        //     println! {"No new"}
-        // }
-        // } else {
-        //     current_books = create_book_vec(&epub_paths);
-        //     let book_refs: Vec<&Book> = current_books.iter().collect();
-        //     match insert_book_db_batch(book_refs) {
-        //         Ok(_) => println!("Insert worked"),
-        //         Err(_) => println!("INsert not so work"),
-        //     };
-        //     file_changes = true;
-        // }
-
-        // if file_changes {
-        //     let file =
-        //         File::create(json_path).expect("JSON path should be defined, and a valid path");
-
-        //     serde_json::to_writer_pretty(file, &current_books).expect("The book JSON should exist");
-        // }
-        //
-        // println!("Execution time: {} ms", start_time.elapsed().as_millis());
-
-        // Some(current_books)
     }
 }
 
@@ -329,9 +230,11 @@ pub fn get_config_dir() -> PathBuf {
 
     full_config_path
 }
+
 pub fn get_settings_path() -> PathBuf {
     get_config_dir().join(env!("SETTINGS_F_NAME"))
 }
+
 pub fn get_cache_dir() -> PathBuf {
     let mut cache_dir = app_cache_dir(&current_context()).expect("Failed to get cache directory");
     cache_dir.push("cache");
@@ -341,35 +244,25 @@ pub fn get_cache_dir() -> PathBuf {
 
     cache_dir
 }
+
 pub fn load_settings() -> HashMap<String, String> {
     let settings_path = get_settings_path();
-    let bro = Path::new(&settings_path);
-    if !bro.exists() {
-        let _ = create_default_settings();
-    }
+
     let file = match OpenOptions::new()
         .read(true)
         .write(true)
-        .create(true)
         .open(&settings_path)
     {
         Ok(file) => file,
         Err(e) => {
             eprintln!("Error opening settings file, trying to create one: {}", e);
-
-            OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(&settings_path)
-                .expect("Failed to open settings file")
+            create_default_settings().expect("While loading the user settings and issue occurred. Resulting in the fallback defaults failing")
         }
     };
 
-    let reader = BufReader::new(&file);
-
     let mut settings_map = HashMap::new();
 
-    for line in std::io::BufRead::lines(reader) {
+    for line in std::io::BufRead::lines(BufReader::new(&file)) {
         let line_content = line.unwrap();
         let split: Vec<&str> = line_content.split('=').collect();
 
@@ -380,7 +273,9 @@ pub fn load_settings() -> HashMap<String, String> {
 
     settings_map
 }
-pub fn create_default_settings() -> Result<(), Error> {
+
+/// Creates the settings file and sets default values
+pub fn create_default_settings() -> Result<File, Error> {
     let mut file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -395,5 +290,5 @@ pub fn create_default_settings() -> Result<(), Error> {
         let setting_str = format!("{}={}\n", lowercase_name, default_value);
         file.write_all(setting_str.as_bytes())?;
     }
-    Ok(())
+    Ok(file)
 }
