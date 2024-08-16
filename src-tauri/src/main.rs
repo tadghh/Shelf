@@ -26,11 +26,11 @@ fn main() {
     runtime.block_on(async {
         database::init_db().await;
     });
+
+    // Now we can import a backup file if it exists
     _ = import_book_json();
-    let current_books = match get_all_books() {
-        Ok(books) => Some(books),
-        Err(_) => None,
-    };
+    let current_books = get_all_books().ok();
+
     let mut worker = BookWorker::new(load_settings(), BookCache::new(current_books));
 
     let book_cache = BookCache::new(worker.initialize_books());

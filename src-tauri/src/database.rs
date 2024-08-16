@@ -35,7 +35,6 @@ async fn create_pool() -> SqlitePool {
         .run(&pool)
         .await
         .expect("migrations failed");
-    // _ = import_book_json();
     pool
 }
 
@@ -59,16 +58,15 @@ fn append_date_to_filename(file_path: &str) -> String {
 }
 
 pub fn import_book_json() -> Result<(), std::io::Error> {
+    // Since the db file doesnt exist we need to remake the table, sqlx will handle recreating the file and all that
     _ = create_books_table();
     if let Some(backup_path) = get_dump_json_path() {
         let path = Path::new(&backup_path);
 
         if path.exists() {
             let file = File::open(&backup_path)?;
-            let old_books: Vec<Book> = match serde_json::from_reader(BufReader::new(file)) {
-                Ok(data) => data,
-                Err(_) => Vec::new(),
-            };
+            let old_books: Vec<Book> =
+                serde_json::from_reader(BufReader::new(file)).unwrap_or_else(|_| Vec::new());
 
             match insert_book_db_batch(&old_books) {
                 Ok(()) => {
@@ -76,7 +74,7 @@ pub fn import_book_json() -> Result<(), std::io::Error> {
                     let spent_file_name = append_date_to_filename(
                         &backup_path
                             .to_str()
-                            .expect("how did the backup path vanish"),
+                            .expect("how did the backup file vanish"),
                     );
                     fs::rename(&backup_path, spent_file_name)?;
                 }

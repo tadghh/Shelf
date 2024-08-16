@@ -1,4 +1,5 @@
 [env]
+BACKUP_FILENAME        ="backup.json"
 CACHE_F_NAME           ="book_cache.json"
 CONFIG_FLDR_NAME       ="config"
 COVER_IMAGE_FOLDER_NAME="cover_cache"

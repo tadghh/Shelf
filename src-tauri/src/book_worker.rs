@@ -12,7 +12,10 @@ use crate::{
         bookio::create_book_vec,
         util::{current_context, get_cover_dir},
     },
-    book_item::{drop_books_from_table, get_all_books, insert_book_db_batch, Book, BookCache},
+    book_item::{
+        create_books_table, drop_books_from_table, get_all_books, insert_book_db_batch, Book,
+        BookCache,
+    },
     database::import_book_json,
     shelf::shelf_settings_values,
 };
@@ -34,57 +37,29 @@ impl BookWorker {
         }
     }
 
-    fn get_cache_dir(&self) -> PathBuf {
-        let mut cache_dir =
-            app_cache_dir(&current_context()).expect("Failed to get cache directory");
-        cache_dir.push("cache");
-        if let Err(err) = create_dir_all(&cache_dir) {
-            eprintln!("Error creating cache directory: {:?}", err);
-        }
-
-        cache_dir
-    }
-
-    /// Creates a settings file and fills it with mostly valid default values.
-
     pub fn set_book_cache(&mut self, new_book_cache: BookCache) {
         self.current_book_cache = new_book_cache
     }
 
     pub fn get_book_cache(&self) -> &BookCache {
         &self.current_book_cache
-        // match self.current_book_cache {
-        //     Some(book_cache) => Some(book_cache),
-        //     None => None,
-        // }
     }
 
     pub fn reset(&mut self) {
-        // _ = drop_books_from_table();
-        let cache_dir = get_cover_dir();
-        let _ = remove_dir_all(cache_dir);
+        _ = remove_dir_all(get_cover_dir());
 
         //Delete settings file
         //If its an error thats okay because we remake the settings file anyway
-        let _ = remove_file(get_settings_path());
+        _ = remove_file(get_settings_path());
         _ = drop_books_from_table();
 
         self.update_book_cache(None);
         self.restore_default_settings();
+        _ = create_books_table();
     }
 
     pub fn import_application_settings(&mut self, new_book_cache: HashMap<String, String>) {
         self.application_user_settings = new_book_cache
-    }
-
-    pub fn get_config_folder_name(&self) -> String {
-        env!("CONFIG_FLDR_NAME").to_string()
-    }
-
-    pub fn get_cover_image_directory(&self) -> Option<PathBuf> {
-        create_dir_all(self.get_covers_path().as_path())
-            .ok()
-            .map(|_| self.get_covers_path())
     }
 
     // TODO support multiple book location
@@ -103,8 +78,8 @@ impl BookWorker {
                 .into_iter()
                 .filter(|book| !current_books.contains(book))
                 .collect();
+
             if !unique_new_books.is_empty() {
-                // let new_books: Vec<Book> = unique_new_books.iter().cloned().collect();
                 let mut all_books = self
                     .get_book_cache()
                     .get_books()
@@ -122,6 +97,7 @@ impl BookWorker {
 
                             serde_json::to_writer(file, &all_books)
                                 .expect("failed to write to backup json file!");
+
                             match import_book_json() {
                                 Ok(_) => self.update_book_cache(Some(all_books)),
                                 Err(_) => println!("Failed to live restore db"),
@@ -150,10 +126,6 @@ impl BookWorker {
         for (_setting_name, (lowercase_name, default_value)) in default_settings.iter() {
             self.update_application_setting(lowercase_name.to_string(), default_value.to_string());
         }
-    }
-
-    pub fn get_covers_path(&self) -> PathBuf {
-        self.get_cache_dir().join(env!("COVER_IMAGE_FOLDER_NAME"))
     }
 
     pub fn update_application_setting(&mut self, option_name: String, value: String) {
@@ -205,53 +177,32 @@ impl BookWorker {
     }
 
     pub fn initialize_books(&mut self) -> Option<Vec<Book>> {
-        let dir = match self.get_application_settings().get("book_location") {
-            Some(val) => val,
-            None => {
-                return None;
-            }
-        };
+        let dir = self.get_application_settings().get("book_location")?;
 
-        // TODO bug the db could still have books
-        // but the books are missing sooo
         if !Path::new(&dir).exists() {
             return None;
         }
 
-        let current_length = self.get_book_cache().get_book_amount();
-
+        //yes you could break this, but im not being paid
+        // bug: swap out a already processed book with a new one
         let epub_paths: Vec<String> = fs::read_dir(dir)
-            .unwrap()
+            .ok()?
             .filter_map(|entry| {
-                let path = entry.unwrap().path();
-                match path {
-                    p if p.is_file() && p.extension()? == "epub" => {
-                        Some(p.to_str().unwrap().to_owned())
-                    }
-                    _ => None,
+                let path = entry.ok()?.path();
+                if path.is_file() && path.extension()? == "epub" {
+                    path.to_str().map(|s| s.to_owned())
+                } else {
+                    None
                 }
             })
             .collect();
 
-        if current_length != epub_paths.len() {
-            let new_books = create_book_vec(&epub_paths);
-            self.update_books(new_books);
+        if self.get_book_cache().get_book_amount() != epub_paths.len() {
+            self.update_books(create_book_vec(&epub_paths));
         }
 
         self.get_book_cache().get_books().cloned()
     }
-}
-
-pub fn get_config_dir() -> PathBuf {
-    let mut full_config_path =
-        app_config_dir(&current_context()).expect("Failed to get config directory");
-    full_config_path.push(env!("CONFIG_FLDR_NAME"));
-
-    if let Err(err) = create_dir_all(&full_config_path) {
-        eprintln!("Error creating config directory: {:?}", err);
-    }
-
-    full_config_path
 }
 
 pub fn get_settings_path() -> PathBuf {
@@ -272,7 +223,7 @@ pub fn get_dump_json_path() -> Option<PathBuf> {
     let path = get_cache_dir();
     // TODO json dump path failed to create
     _ = create_dir_all(get_cache_dir());
-    Some(path.join("backup.json"))
+    Some(path.join(env!("BACKUP_FILENAME")))
 }
 
 pub fn load_settings() -> HashMap<String, String> {
@@ -320,4 +271,21 @@ pub fn create_default_settings() -> Result<File, Error> {
         file.write_all(setting_str.as_bytes())?;
     }
     Ok(file)
+}
+
+pub fn get_cover_image_directory() -> Option<PathBuf> {
+    let cover_path = get_cache_dir().join(env!("COVER_IMAGE_FOLDER_NAME"));
+    create_dir_all(&cover_path).ok().map(|_| cover_path)
+}
+
+pub fn get_config_dir() -> PathBuf {
+    let mut full_config_path =
+        app_config_dir(&current_context()).expect("Failed to get config directory");
+    full_config_path.push(env!("CONFIG_FLDR_NAME"));
+
+    if let Err(err) = create_dir_all(&full_config_path) {
+        eprintln!("Error creating config directory: {:?}", err);
+    }
+
+    full_config_path
 }
