@@ -10,7 +10,7 @@ use time::{format_description::parse, OffsetDateTime};
 use tokio::sync::OnceCell;
 
 use crate::{
-    book_item::{insert_book_db_batch, Book},
+    book_item::{create_books_table, insert_book_db_batch, Book},
     book_worker::{get_cache_dir, get_dump_json_path},
 };
 
@@ -35,9 +35,14 @@ async fn create_pool() -> SqlitePool {
         .run(&pool)
         .await
         .expect("migrations failed");
-    _ = import_book_json();
+    // _ = import_book_json();
     pool
 }
+
+pub fn check_db_health() -> bool {
+    Path::new(&get_cache_dir().join(env!("DATABASE_FILENAME"))).exists()
+}
+
 fn append_date_to_filename(file_path: &str) -> String {
     // Get the current date in YYYY-MM-DD format
     let format = parse("[year][month][day]").unwrap();
@@ -52,7 +57,9 @@ fn append_date_to_filename(file_path: &str) -> String {
         format!("{}_{}", file_path, today)
     }
 }
+
 pub fn import_book_json() -> Result<(), std::io::Error> {
+    _ = create_books_table();
     if let Some(backup_path) = get_dump_json_path() {
         let path = Path::new(&backup_path);
 
@@ -73,8 +80,11 @@ pub fn import_book_json() -> Result<(), std::io::Error> {
                     );
                     fs::rename(&backup_path, spent_file_name)?;
                 }
-                Err(_) => {
-                    println!("Hurray, something went wrong while restoring the backup");
+                Err(e) => {
+                    println!(
+                        "Hurray, something went wrong while restoring the backup {:?}",
+                        e
+                    );
                 }
             };
         } else {

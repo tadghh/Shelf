@@ -16,6 +16,7 @@ use app::{
 };
 use book_item::{get_all_books, BookCache};
 use book_worker::{load_settings, BookWorker};
+use database::import_book_json;
 use tokio::runtime::Runtime;
 
 fn main() {
@@ -25,6 +26,7 @@ fn main() {
     runtime.block_on(async {
         database::init_db().await;
     });
+    _ = import_book_json();
     let current_books = match get_all_books() {
         Ok(books) => Some(books),
         Err(_) => None,

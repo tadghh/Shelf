@@ -13,6 +13,7 @@ use crate::{
         util::{current_context, get_cover_dir},
     },
     book_item::{drop_books_from_table, get_all_books, insert_book_db_batch, Book, BookCache},
+    database::import_book_json,
     shelf::shelf_settings_values,
 };
 
@@ -90,9 +91,12 @@ impl BookWorker {
     pub fn get_application_settings(&self) -> &HashMap<String, String> {
         &self.application_user_settings
     }
+
     // Updates the book objects items
     fn update_books(&mut self, new_books: Vec<Book>) {
-        let current_books = get_all_books().ok();
+        let current_books = get_all_books()
+            .ok()
+            .or_else(|| self.get_book_cache().get_books().cloned());
 
         if let Some(current_books) = current_books {
             let unique_new_books: Vec<_> = new_books
@@ -110,29 +114,34 @@ impl BookWorker {
 
                 if let Err(_) = insert_book_db_batch(&unique_new_books) {
                     println!("Failed to update books, dumping to backup file");
+                    match get_dump_json_path() {
+                        Some(path) => {
+                            let file = File::create(path).expect(
+                                "JSON backup path should be defined, and a valid json file",
+                            );
 
-                    let file = File::create(get_dump_json_path().unwrap())
-                        .expect("JSON path should be defined, and a valid path");
-
-                    serde_json::to_writer(file, &all_books)
-                        .expect("failed to write to backup json file!");
+                            serde_json::to_writer(file, &all_books)
+                                .expect("failed to write to backup json file!");
+                            match import_book_json() {
+                                Ok(_) => self.update_book_cache(Some(all_books)),
+                                Err(_) => println!("Failed to live restore db"),
+                            }
+                        }
+                        None => println!("Failed to make json dump file"),
+                    }
                 } else {
-                    // no error when inserting data, lets update the workers books
-
                     self.update_book_cache(Some(all_books));
                 }
-
-                //return Some(unique_new_books);
             }
+        } else {
+            println!("Current books failed both")
         }
 
         println!("epub length different but no new books");
     }
+
     pub fn update_book_cache(&mut self, new_books: Option<Vec<Book>>) {
         self.current_book_cache.update_books(new_books)
-
-        // let pecker = self.current_book_cache.as_mut().unwrap();
-        // pecker.update_books(new_books);
     }
 
     pub fn restore_default_settings(&mut self) {
@@ -230,58 +239,6 @@ impl BookWorker {
         }
 
         self.get_book_cache().get_books().cloned()
-        // let current_books = match get_all_books() {
-        //     Ok(books) => Some(books),
-        //     Err(e) => {
-        //         println!("{}", e);
-        //         None
-        //     }
-        // };
-        // match current_books {
-        //     Some(current_books) => {
-        //         self.update_books(new_books);
-        //         Some(self.get_book_cache().get_books().clone())
-        //         // Some(get_all_books().unwrap())
-        //         // match current_length {
-        //         //     0 => {
-        //         //         let new_books_refs: Vec<Book> = new_books
-        //         //             .iter()
-        //         //             .map(|book| book.to_owned())
-        //         //             .collect::<Vec<Book>>()
-        //         //             .clone();
-        //         //         self.update_books(new_books_refs);
-        //         //         Some(new_books)
-        //         //     }
-        //         //     _ if current_length != epub_amount => {
-        //         //         let unique_new_books: Vec<_> = new_books
-        //         //             .into_iter()
-        //         //             .filter(|book| !current_books.contains(book))
-        //         //             .collect();
-        //         //         if unique_new_books.len() != 0 {
-        //         //             let new_books: Vec<Book> = unique_new_books
-        //         //                 .iter()
-        //         //                 .map(|book| book.to_owned())
-        //         //                 .collect();
-
-        //         //             match insert_book_db_batch(&new_books) {
-        //         //                 Ok(_) => println!("Insert worked"),
-        //         //                 Err(_) => println!(
-        //         //                     "INsert not so work maybe book with same title but diff author"
-        //         //                 ),
-        //         //             };
-        //         //             return Some(unique_new_books);
-        //         //         }
-        //         //         println!("epub length different but no new books");
-        //         //         Some(current_books)
-        //         //     }
-        //         //     _ => {
-        //         //         println!("no new books");
-        //         //         Some(current_books)
-        //         //     }
-        //         // }
-        //     }
-        //     None => None,
-        // }
     }
 }
 
@@ -310,10 +267,14 @@ pub fn get_cache_dir() -> PathBuf {
 
     cache_dir
 }
+
 pub fn get_dump_json_path() -> Option<PathBuf> {
-    let path = get_cache_dir().join("backup.json");
-    path.exists().then_some(path)
+    let path = get_cache_dir();
+    // TODO json dump path failed to create
+    _ = create_dir_all(get_cache_dir());
+    Some(path.join("backup.json"))
 }
+
 pub fn load_settings() -> HashMap<String, String> {
     let settings_path = get_settings_path();
 
@@ -323,8 +284,7 @@ pub fn load_settings() -> HashMap<String, String> {
         .open(&settings_path)
     {
         Ok(file) => file,
-        Err(e) => {
-            // eprintln!("Error opening settings file, trying to create one: {}", e);
+        Err(_) => {
             create_default_settings().expect("While loading the user settings an issue occurred. Resulting in the fallback defaults failing")
         }
     };

@@ -104,7 +104,6 @@ impl Book {
                         None
                     }
                 }
-                //Some(cover_path_san)
             }
         };
 
@@ -114,6 +113,7 @@ impl Book {
             title,
         }
     }
+
     fn get_cover_dir(&self) -> PathBuf {
         let mut cache_dir =
             app_cache_dir(&current_context()).expect("Failed to get cache directory");
@@ -125,9 +125,11 @@ impl Book {
 
         cache_dir
     }
+
     pub fn get_title(&self) -> &String {
         &self.title
     }
+
     pub fn get_cover_location(&self) -> String {
         match &self.cover_location {
             Some(cover) => self
@@ -138,6 +140,7 @@ impl Book {
             None => env!("DEFAULT_COVER_NAME").to_string(),
         }
     }
+
     pub fn get_cover_filename(&self) -> &str {
         println!("get {:?}", self.cover_location);
         match &self.cover_location {
@@ -145,6 +148,7 @@ impl Book {
             None => env!("DEFAULT_COVER_NAME"),
         }
     }
+
     pub fn get_book_location(&self) -> &String {
         &self.book_location
     }
