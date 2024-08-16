@@ -32,6 +32,7 @@ tauri= { version="1.5.1", features= [
 	"window-set-title",
 ] }
 tauri-utils="1.5.0"
+time= { version="0.3.36", features= ["formatting"] }
 tokio="1.39.2"
 xmltree="*"
 

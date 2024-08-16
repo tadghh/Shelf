@@ -24,9 +24,13 @@
         "setTitle": true,
         "setMinSize": true,
         "setSize": true
+      },
+      "fs": {
+        "scope": ["$RESOURCE/*"]
       }
     },
     "bundle": {
+      "resources": ["./migrations/*"],
       "active": true,
       "category": "Utility",
       "copyright": "",
@@ -45,11 +49,11 @@
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
         "timestampUrl": "",
-        "nsis":{
+        "nsis": {
           "headerImage": "../resources/installer_header.bmp",
           "sidebarImage": "../resources/installer_sidebar.bmp",
           "installerIcon": "../resources/logo.ico",
-          "installMode":"both"
+          "installMode": "both"
         },
         "webviewInstallMode": {
           "silent": true,

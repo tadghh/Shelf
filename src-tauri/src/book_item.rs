@@ -16,7 +16,7 @@ use crate::{
 use epub::doc::EpubDoc;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use sqlx::Sqlite;
+use sqlx::{sqlite::SqliteQueryResult, Sqlite};
 use tauri::{api::path::app_cache_dir, State};
 use tokio::runtime::Runtime;
 use xmltree::Element;
@@ -34,12 +34,18 @@ impl BookCache {
     pub fn new(books: Option<Vec<Book>>) -> BookCache {
         BookCache { books }
     }
-    pub fn update_books(&mut self, new_books: Vec<Book>) {
-        self.books = Some(new_books);
-    }
 
-    pub fn get_books(&self) -> &Vec<Book> {
-        self.books.as_ref().unwrap()
+    pub fn update_books(&mut self, new_books: Option<Vec<Book>>) {
+        self.books = new_books;
+    }
+    pub fn get_book_amount(&self) -> usize {
+        match &self.books {
+            Some(books) => books.len(),
+            None => 0,
+        }
+    }
+    pub fn get_books(&self) -> Option<&Vec<Book>> {
+        self.books.as_ref()
     }
     pub fn find_by_title(&self, title: &str) -> Option<&Book> {
         self.books.as_ref()?.iter().find(|book| book.title == title)
@@ -79,10 +85,9 @@ impl Book {
                 let mut cover_name = epub_doc.mdata("title").unwrap();
                 cover_name.push_str(".jpg");
                 let cover_path_san = sanitize_windows_filename(cover_name.clone());
-                println!("{:?}", cover_path_san);
                 let cover_path = &covers_directory.join(sanitize_windows_filename(cover_name));
 
-                _ = match get_book_cover_image(epub_doc) {
+                match get_book_cover_image(epub_doc) {
                     Ok(cover_data) => match write_cover_image(cover_data, cover_path) {
                         // I need the path as a string plz
                         Ok(_) => Some(cover_path_san.clone()),
@@ -98,8 +103,8 @@ impl Book {
                         println!("{}", err);
                         None
                     }
-                };
-                Some(cover_path_san)
+                }
+                //Some(cover_path_san)
             }
         };
 
@@ -160,7 +165,6 @@ pub fn get_cover_location_command(book: Book) -> String {
 pub fn load_book(title: String, state: State<'_, Mutex<BookWorker>>) -> Option<Book> {
     let book_worker = state.lock().unwrap();
     let book_cache = book_worker.get_book_cache();
-
     match book_cache.find_by_title(&title) {
         Some(book) => Some(book.clone()),
         None => None,
@@ -175,6 +179,21 @@ pub fn get_all_books() -> Result<Vec<Book>, sqlx::Error> {
             .await?;
         Ok(books)
     })
+}
+
+pub fn drop_books_from_table() -> Result<SqliteQueryResult, sqlx::Error> {
+    let runtime = Runtime::new().expect("Failed to create Tokio runtime");
+    runtime.block_on(async {
+        // dont format this line
+        Ok(sqlx::query("DELETE FROM books").execute(get_db()).await?)
+    })
+}
+
+pub fn create_books_table() -> Result<SqliteQueryResult, sqlx::Error> {
+    let runtime = Runtime::new().expect("Failed to create Tokio runtime");
+    runtime.block_on(async {
+        // dont format this line
+        Ok(sqlx::query("CREATE TABLE IF NOT EXISTS books (id INTEGER PRIMARY KEY AUTOINCREMENT, cover_location TEXT NOT NULL, book_location TEXT NOT NULL, title TEXT NOT NULL);").execute(get_db()).await?)    })
 }
 
 // TODO should add a checksum to the db along with the books
@@ -194,9 +213,6 @@ pub fn get_book_on_name(name: String) -> Result<Option<Book>, sqlx::Error> {
 }
 
 pub async fn insert_book_db(new_book: Book) -> Result<(), sqlx::Error> {
-    // cover_location: String,
-    //   book_location: String,
-    //   title: String,
     sqlx::query("INSERT INTO books (cover_location, book_location, title) VALUES ($1, $2, $3)")
         .bind(new_book.get_cover_filename())
         .bind(new_book.get_book_location())
@@ -206,9 +222,7 @@ pub async fn insert_book_db(new_book: Book) -> Result<(), sqlx::Error> {
     Ok(())
 }
 
-pub fn insert_book_db_batch(new_book_batch: Vec<&Book>) -> Result<(), sqlx::Error> {
-    // cover_location: String,
-    //   book_location: String,
+pub fn insert_book_db_batch(new_book_batch: &Vec<Book>) -> Result<(), sqlx::Error> {
     let runtime = Runtime::new().expect("Failed to create Tokio runtime");
     runtime.block_on(async {
         let mut query_builder: sqlx::QueryBuilder<Sqlite> =
@@ -223,7 +237,6 @@ pub fn insert_book_db_batch(new_book_batch: Vec<&Book>) -> Result<(), sqlx::Erro
 
         let query = query_builder.build();
         query.execute(get_db()).await?;
-        // println!("{:?}", query);
 
         Ok(())
     })

@@ -45,6 +45,7 @@ pub fn write_cover_image(data: (Vec<u8>, String), path: &PathBuf) -> Result<&Pat
 /// * `write_directory` - A string representing the path to write to
 ///
 pub fn create_book_vec(items: &Vec<String>) -> Vec<Book> {
+    println!("{:?} items handed to create new", items.len());
     let books: Vec<Book> = items
         .par_iter()
         .filter_map(|item| {
@@ -79,7 +80,7 @@ pub fn create_book_vec(items: &Vec<String>) -> Vec<Book> {
 /// Otherwise only books missing from the Static vector will be initialized
 #[tauri::command]
 pub fn initialize_books(state: State<'_, Mutex<BookWorker>>) -> Option<Vec<Book>> {
-    let book_worker = state.lock().unwrap();
+    let mut book_worker = state.lock().unwrap();
 
     book_worker.initialize_books()
 }

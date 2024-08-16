@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fs::{self, create_dir_all, File, OpenOptions},
+    fs::{self, create_dir_all, remove_dir_all, remove_file, File, OpenOptions},
     io::{BufReader, Error, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
@@ -8,8 +8,11 @@ use std::{
 use tauri::api::path::{app_cache_dir, app_config_dir};
 
 use crate::{
-    book::{bookio::create_book_vec, util::current_context},
-    book_item::{get_all_books, insert_book_db_batch, Book, BookCache},
+    book::{
+        bookio::create_book_vec,
+        util::{current_context, get_cover_dir},
+    },
+    book_item::{drop_books_from_table, get_all_books, insert_book_db_batch, Book, BookCache},
     shelf::shelf_settings_values,
 };
 
@@ -17,12 +20,12 @@ use crate::{
 // We leverage tauris manage state feature to access it when needed
 pub struct BookWorker {
     application_user_settings: HashMap<String, String>,
-    current_book_cache: Option<BookCache>,
+    current_book_cache: BookCache,
 }
 impl BookWorker {
     pub fn new(
         application_user_settings: HashMap<String, String>,
-        current_book_cache: Option<BookCache>,
+        current_book_cache: BookCache,
     ) -> BookWorker {
         BookWorker {
             application_user_settings,
@@ -44,18 +47,33 @@ impl BookWorker {
     /// Creates a settings file and fills it with mostly valid default values.
 
     pub fn set_book_cache(&mut self, new_book_cache: BookCache) {
-        self.current_book_cache = Some(new_book_cache)
+        self.current_book_cache = new_book_cache
+    }
+
+    pub fn get_book_cache(&self) -> &BookCache {
+        &self.current_book_cache
+        // match self.current_book_cache {
+        //     Some(book_cache) => Some(book_cache),
+        //     None => None,
+        // }
+    }
+
+    pub fn reset(&mut self) {
+        // _ = drop_books_from_table();
+        let cache_dir = get_cover_dir();
+        let _ = remove_dir_all(cache_dir);
+
+        //Delete settings file
+        //If its an error thats okay because we remake the settings file anyway
+        let _ = remove_file(get_settings_path());
+        _ = drop_books_from_table();
+
+        self.update_book_cache(None);
+        self.restore_default_settings();
     }
 
     pub fn import_application_settings(&mut self, new_book_cache: HashMap<String, String>) {
         self.application_user_settings = new_book_cache
-    }
-
-    pub fn get_json_path(&self) -> String {
-        self.get_cache_dir()
-            .join(env!("CACHE_F_NAME"))
-            .to_string_lossy()
-            .to_string()
     }
 
     pub fn get_config_folder_name(&self) -> String {
@@ -63,27 +81,58 @@ impl BookWorker {
     }
 
     pub fn get_cover_image_directory(&self) -> Option<PathBuf> {
-        let covers_directory = self.get_covers_path();
-        //covers_directory.push(self.get_cover_image_folder_name());
-        match create_dir_all(covers_directory.clone()) {
-            Ok(()) => Some(covers_directory),
-            Err(_) => None,
-        }
+        create_dir_all(self.get_covers_path().as_path())
+            .ok()
+            .map(|_| self.get_covers_path())
     }
 
     // TODO support multiple book location
     pub fn get_application_settings(&self) -> &HashMap<String, String> {
         &self.application_user_settings
     }
+    // Updates the book objects items
+    fn update_books(&mut self, new_books: Vec<Book>) {
+        let current_books = get_all_books().ok();
 
-    pub fn get_book_cache(&self) -> &BookCache {
-        let pecker = self.current_book_cache.as_ref().unwrap();
-        &pecker
+        if let Some(current_books) = current_books {
+            let unique_new_books: Vec<_> = new_books
+                .into_iter()
+                .filter(|book| !current_books.contains(book))
+                .collect();
+            if !unique_new_books.is_empty() {
+                // let new_books: Vec<Book> = unique_new_books.iter().cloned().collect();
+                let mut all_books = self
+                    .get_book_cache()
+                    .get_books()
+                    .cloned()
+                    .unwrap_or_else(Vec::new);
+                all_books.extend(unique_new_books.clone());
+
+                if let Err(_) = insert_book_db_batch(&unique_new_books) {
+                    println!("Failed to update books, dumping to backup file");
+
+                    let file = File::create(get_dump_json_path().unwrap())
+                        .expect("JSON path should be defined, and a valid path");
+
+                    serde_json::to_writer(file, &all_books)
+                        .expect("failed to write to backup json file!");
+                } else {
+                    // no error when inserting data, lets update the workers books
+
+                    self.update_book_cache(Some(all_books));
+                }
+
+                //return Some(unique_new_books);
+            }
+        }
+
+        println!("epub length different but no new books");
     }
+    pub fn update_book_cache(&mut self, new_books: Option<Vec<Book>>) {
+        self.current_book_cache.update_books(new_books)
 
-    pub fn update_book_cache(&mut self, new_books: Vec<Book>) {
-        let pecker = self.current_book_cache.as_mut().unwrap();
-        pecker.update_books(new_books);
+        // let pecker = self.current_book_cache.as_mut().unwrap();
+        // pecker.update_books(new_books);
     }
 
     pub fn restore_default_settings(&mut self) {
@@ -146,19 +195,21 @@ impl BookWorker {
         }
     }
 
-    pub fn initialize_books(&self) -> Option<Vec<Book>> {
-        let current_books: Vec<Book>;
-
+    pub fn initialize_books(&mut self) -> Option<Vec<Book>> {
         let dir = match self.get_application_settings().get("book_location") {
             Some(val) => val,
             None => {
                 return None;
             }
         };
+
         // TODO bug the db could still have books
+        // but the books are missing sooo
         if !Path::new(&dir).exists() {
             return None;
         }
+
+        let current_length = self.get_book_cache().get_book_amount();
 
         let epub_paths: Vec<String> = fs::read_dir(dir)
             .unwrap()
@@ -173,49 +224,64 @@ impl BookWorker {
             })
             .collect();
 
-        let epub_amount = epub_paths.len();
-
-        let new_books = create_book_vec(&epub_paths);
-
-        current_books = match get_all_books() {
-            Ok(books) => books,
-            Err(_) => todo!(),
-        };
-
-        let current_length = current_books.len();
-        match current_length {
-            0 => {
-                let new_books_refs: Vec<&Book> = new_books.iter().map(|book| book).collect();
-                match insert_book_db_batch(new_books_refs) {
-                    Ok(_) => println!("Insert worked"),
-                    Err(_) => println!("INsert not so work"),
-                };
-                Some(new_books)
-            }
-            _ if current_length != epub_amount => {
-                let unique_new_books: Vec<_> = new_books
-                    .into_iter()
-                    .filter(|book| !current_books.contains(book))
-                    .collect();
-                if unique_new_books.len() != 0 {
-                    let new_books: Vec<&Book> = unique_new_books.iter().map(|book| book).collect();
-
-                    match insert_book_db_batch(new_books) {
-                        Ok(_) => println!("Insert worked"),
-                        Err(_) => println!(
-                            "INsert not so work maybe book with same title but diff author"
-                        ),
-                    };
-                    return Some(unique_new_books);
-                }
-                println!("epub length different but no new books");
-                Some(current_books)
-            }
-            _ => {
-                println!("no new books");
-                Some(current_books)
-            }
+        if current_length != epub_paths.len() {
+            let new_books = create_book_vec(&epub_paths);
+            self.update_books(new_books);
         }
+
+        self.get_book_cache().get_books().cloned()
+        // let current_books = match get_all_books() {
+        //     Ok(books) => Some(books),
+        //     Err(e) => {
+        //         println!("{}", e);
+        //         None
+        //     }
+        // };
+        // match current_books {
+        //     Some(current_books) => {
+        //         self.update_books(new_books);
+        //         Some(self.get_book_cache().get_books().clone())
+        //         // Some(get_all_books().unwrap())
+        //         // match current_length {
+        //         //     0 => {
+        //         //         let new_books_refs: Vec<Book> = new_books
+        //         //             .iter()
+        //         //             .map(|book| book.to_owned())
+        //         //             .collect::<Vec<Book>>()
+        //         //             .clone();
+        //         //         self.update_books(new_books_refs);
+        //         //         Some(new_books)
+        //         //     }
+        //         //     _ if current_length != epub_amount => {
+        //         //         let unique_new_books: Vec<_> = new_books
+        //         //             .into_iter()
+        //         //             .filter(|book| !current_books.contains(book))
+        //         //             .collect();
+        //         //         if unique_new_books.len() != 0 {
+        //         //             let new_books: Vec<Book> = unique_new_books
+        //         //                 .iter()
+        //         //                 .map(|book| book.to_owned())
+        //         //                 .collect();
+
+        //         //             match insert_book_db_batch(&new_books) {
+        //         //                 Ok(_) => println!("Insert worked"),
+        //         //                 Err(_) => println!(
+        //         //                     "INsert not so work maybe book with same title but diff author"
+        //         //                 ),
+        //         //             };
+        //         //             return Some(unique_new_books);
+        //         //         }
+        //         //         println!("epub length different but no new books");
+        //         //         Some(current_books)
+        //         //     }
+        //         //     _ => {
+        //         //         println!("no new books");
+        //         //         Some(current_books)
+        //         //     }
+        //         // }
+        //     }
+        //     None => None,
+        // }
     }
 }
 
@@ -244,7 +310,10 @@ pub fn get_cache_dir() -> PathBuf {
 
     cache_dir
 }
-
+pub fn get_dump_json_path() -> Option<PathBuf> {
+    let path = get_cache_dir().join("backup.json");
+    path.exists().then_some(path)
+}
 pub fn load_settings() -> HashMap<String, String> {
     let settings_path = get_settings_path();
 
@@ -255,8 +324,8 @@ pub fn load_settings() -> HashMap<String, String> {
     {
         Ok(file) => file,
         Err(e) => {
-            eprintln!("Error opening settings file, trying to create one: {}", e);
-            create_default_settings().expect("While loading the user settings and issue occurred. Resulting in the fallback defaults failing")
+            // eprintln!("Error opening settings file, trying to create one: {}", e);
+            create_default_settings().expect("While loading the user settings an issue occurred. Resulting in the fallback defaults failing")
         }
     };
 

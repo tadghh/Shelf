@@ -1,12 +1,8 @@
-use std::{
-    collections::HashMap,
-    fs::{remove_dir_all, remove_file},
-    sync::Mutex,
-};
+use std::{collections::HashMap, sync::Mutex};
 
 use tauri::State;
 
-use crate::book_worker::{get_cache_dir, get_settings_path, load_settings, BookWorker};
+use crate::book_worker::BookWorker;
 
 ///This is how we get out settings back over to nextjs.
 ///TODO: Use enums throughout backend, lazy guy :|
@@ -28,12 +24,6 @@ pub fn shelf_settings_values() -> HashMap<String, (String, String)> {
         .collect()
 }
 
-/// To force overwrite users settings in memory
-
-///Load user settings into memory, if they havent already been
-
-/// Sets all settings consts to be "unset" or default
-
 /// Returns the setting for the provided value
 ///
 /// # Arguments
@@ -53,7 +43,6 @@ pub fn get_configuration_option(
     settings_value.cloned()
 }
 
-#[allow(static_mut_refs)]
 /// Changes the value of a settings item
 ///
 /// # Arguments
@@ -61,8 +50,6 @@ pub fn get_configuration_option(
 /// * `option_name` - The setting to change
 /// * `value` - The new value to set
 ///
-/// #[warn(static_mut_refs)]
-
 #[tauri::command(rename_all = "snake_case")]
 pub fn change_configuration_option(
     option_name: String,
@@ -78,18 +65,7 @@ pub fn change_configuration_option(
 pub fn reset_configuration(state: State<'_, Mutex<BookWorker>>) -> Result<(), String> {
     let mut book_worker = state.lock().unwrap();
     // TODO use array for errors
-    //let mut book_worker = state.lock().unwrap();
-    let cache_dir = get_cache_dir();
-    let _ = remove_dir_all(cache_dir);
-
-    //Delete settings file
-    //If its an error thats okay because we remake the settings file anyway
-    let _ = remove_file(get_settings_path());
-
-    //call default settings
-    book_worker.restore_default_settings();
-    book_worker.import_application_settings(load_settings());
-    // TODO reset db
+    book_worker.reset();
 
     Ok(())
 }

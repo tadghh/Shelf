@@ -14,7 +14,7 @@ use app::{
         shelf_settings_values,
     },
 };
-use book_item::BookCache;
+use book_item::{get_all_books, BookCache};
 use book_worker::{load_settings, BookWorker};
 use tokio::runtime::Runtime;
 
@@ -25,7 +25,11 @@ fn main() {
     runtime.block_on(async {
         database::init_db().await;
     });
-    let mut worker = BookWorker::new(load_settings(), None);
+    let current_books = match get_all_books() {
+        Ok(books) => Some(books),
+        Err(_) => None,
+    };
+    let mut worker = BookWorker::new(load_settings(), BookCache::new(current_books));
 
     let book_cache = BookCache::new(worker.initialize_books());
 
