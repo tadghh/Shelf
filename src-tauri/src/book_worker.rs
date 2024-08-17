@@ -16,7 +16,7 @@ use crate::{
         create_books_table, drop_books_from_table, get_all_books, insert_book_db_batch, Book,
         BookCache,
     },
-    database::import_book_json,
+    database::{check_db_health, import_book_json},
     shelf::shelf_settings_values,
 };
 
@@ -61,6 +61,31 @@ impl BookWorker {
     pub fn import_application_settings(&mut self, new_book_cache: HashMap<String, String>) {
         self.application_user_settings = new_book_cache
     }
+    fn backup_current_books(&mut self) {
+        match &self.get_book_cache().get_books() {
+            Some(all_books) => match get_dump_json_path() {
+                Some(path) => {
+                    let file = File::create(path)
+                        .expect("JSON backup path should be defined, and a valid json file");
+
+                    serde_json::to_writer(file, &all_books)
+                        .expect("failed to write to backup json file!");
+                }
+                None => println!("Failed to make json dump file"),
+            },
+            None => todo!(),
+        }
+    }
+
+    // check if db file is missing
+    // run backup current books if it is
+    // run import method
+    pub fn repair_db(&mut self) {
+        if !check_db_health() {
+            self.backup_current_books();
+            _ = import_book_json();
+        }
+    }
 
     // TODO support multiple book location
     pub fn get_application_settings(&self) -> &HashMap<String, String> {
@@ -73,47 +98,36 @@ impl BookWorker {
             .ok()
             .or_else(|| self.get_book_cache().get_books().cloned());
 
-        if let Some(current_books) = current_books {
-            let unique_new_books: Vec<_> = new_books
-                .into_iter()
-                .filter(|book| !current_books.contains(book))
-                .collect();
+        let unique_new_books: Vec<_> = new_books
+            .into_iter()
+            .filter(|book| {
+                current_books
+                    .as_ref()
+                    .map_or(true, |books| !books.contains(book))
+            })
+            .collect();
 
-            if !unique_new_books.is_empty() {
-                let mut all_books = self
-                    .get_book_cache()
-                    .get_books()
-                    .cloned()
-                    .unwrap_or_else(Vec::new);
-                all_books.extend(unique_new_books.clone());
-
-                if let Err(_) = insert_book_db_batch(&unique_new_books) {
-                    println!("Failed to update books, dumping to backup file");
-                    match get_dump_json_path() {
-                        Some(path) => {
-                            let file = File::create(path).expect(
-                                "JSON backup path should be defined, and a valid json file",
-                            );
-
-                            serde_json::to_writer(file, &all_books)
-                                .expect("failed to write to backup json file!");
-
-                            match import_book_json() {
-                                Ok(_) => self.update_book_cache(Some(all_books)),
-                                Err(_) => println!("Failed to live restore db"),
-                            }
-                        }
-                        None => println!("Failed to make json dump file"),
-                    }
-                } else {
-                    self.update_book_cache(Some(all_books));
-                }
-            }
-        } else {
-            println!("Current books failed both")
+        if unique_new_books.is_empty() {
+            println!("No new unique books found or current_books was None");
+            println!("epub length different but no new books");
+            return;
         }
 
-        println!("epub length different but no new books");
+        let mut all_books = self
+            .get_book_cache()
+            .get_books()
+            .cloned()
+            .unwrap_or_default();
+        all_books.extend(unique_new_books.clone());
+
+        // Update book contents in memory
+        self.update_book_cache(Some(all_books));
+
+        // try to update local storage book contents
+        if insert_book_db_batch(&unique_new_books).is_err() {
+            println!("Failed to update books, dumping to backup file");
+            self.repair_db();
+        }
     }
 
     pub fn update_book_cache(&mut self, new_books: Option<Vec<Book>>) {

@@ -4,12 +4,15 @@ use std::{
     path::Path,
 };
 
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqliteSynchronous};
+use sqlx::sqlite::{
+    SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqliteQueryResult, SqliteSynchronous,
+};
 
 use time::{format_description::parse, OffsetDateTime};
 use tokio::sync::OnceCell;
 
 use crate::{
+    book::util::is_file_empty,
     book_item::{create_books_table, insert_book_db_batch, Book},
     book_worker::{get_cache_dir, get_dump_json_path},
 };
@@ -31,15 +34,23 @@ async fn create_pool() -> SqlitePool {
         db_location
     ));
 
-    sqlx::migrate!(".\\migrations")
-        .run(&pool)
-        .await
-        .expect("migrations failed");
+    // sqlx::migrate!(".\\migrations")
+    //     .run(&pool)
+    //     .await
+    //     .expect("migrations failed");
+    _ = create_books_table_init();
     pool
 }
 
+async fn create_books_table_init() -> Result<SqliteQueryResult, sqlx::Error> {
+    // dont format this line
+    Ok(sqlx::query("CREATE TABLE IF NOT EXISTS books (id INTEGER PRIMARY KEY AUTOINCREMENT, cover_location TEXT NOT NULL, book_location TEXT NOT NULL, title TEXT NOT NULL);").execute(get_db()).await?)
+}
 pub fn check_db_health() -> bool {
-    Path::new(&get_cache_dir().join(env!("DATABASE_FILENAME"))).exists()
+    let binding = get_cache_dir().join(env!("DATABASE_FILENAME"));
+    let db_path = Path::new(&binding);
+
+    db_path.exists() && !is_file_empty(db_path)
 }
 
 fn append_date_to_filename(file_path: &str) -> String {
@@ -61,9 +72,9 @@ pub fn import_book_json() -> Result<(), std::io::Error> {
     // Since the db file doesnt exist we need to remake the table, sqlx will handle recreating the file and all that
     _ = create_books_table();
     if let Some(backup_path) = get_dump_json_path() {
-        let path = Path::new(&backup_path);
+        //let path = Path::new(&backup_path);
 
-        if path.exists() {
+        if Path::new(&backup_path).exists() {
             let file = File::open(&backup_path)?;
             let old_books: Vec<Book> =
                 serde_json::from_reader(BufReader::new(file)).unwrap_or_else(|_| Vec::new());

@@ -8,7 +8,7 @@ use std::{
 use crate::{
     book::{
         bookio::{get_book_cover_image, write_cover_image, BookError},
-        util::{check_epub_resource, current_context, get_cover_dir, sanitize_windows_filename},
+        util::{check_epub_resource, current_context, get_cover_dir},
     },
     book_worker::BookWorker,
     database::get_db,
@@ -84,8 +84,9 @@ impl Book {
                 // why why why, am I supposed to make another object before the ensures everything is g? (unwrap)
                 let mut cover_name = epub_doc.mdata("title").unwrap();
                 cover_name.push_str(".jpg");
-                let cover_path_san = sanitize_windows_filename(cover_name.clone());
-                let cover_path = &covers_directory.join(sanitize_windows_filename(cover_name));
+                let cover_path_san = Self::sanitize_windows_filename(cover_name.clone());
+                let cover_path =
+                    &covers_directory.join(Self::sanitize_windows_filename(cover_name));
 
                 match get_book_cover_image(epub_doc) {
                     Ok(cover_data) => match write_cover_image(cover_data, cover_path) {
@@ -112,6 +113,30 @@ impl Book {
             book_location,
             title,
         }
+    }
+
+    /// Removes special characters from a given string and returns it
+    /// Some book titles contain characters that aren't compatible when used as filenames
+    ///
+    /// # Arguments
+    ///
+    /// * `filename` - The filename to sanitize
+    ///
+    fn sanitize_windows_filename(filename: String) -> String {
+        let disallowed_chars = vec!['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+
+        let sanitized: String = filename
+            .chars()
+            .map(|c| {
+                if disallowed_chars.contains(&c) {
+                    '_'
+                } else {
+                    c
+                }
+            })
+            .collect();
+
+        sanitized
     }
 
     fn get_cover_dir(&self) -> PathBuf {

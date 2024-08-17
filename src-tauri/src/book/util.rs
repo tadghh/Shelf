@@ -9,38 +9,14 @@ use crate::book_item::Book;
 use std::{
     cmp::Ordering,
     collections::HashMap,
-    fs::{create_dir_all, File},
+    fs::{self, create_dir_all, File},
     io::BufReader,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 /// Gets the current tauri context.
 pub fn current_context() -> Config {
     generate_context!().config().clone()
-}
-
-/// Removes special characters from a given string and returns it
-/// Some book titles contain characters that aren't compatible when used as filenames
-///
-/// # Arguments
-///
-/// * `filename` - The filename to sanitize
-///
-pub fn sanitize_windows_filename(filename: String) -> String {
-    let disallowed_chars = vec!['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
-
-    let sanitized: String = filename
-        .chars()
-        .map(|c| {
-            if disallowed_chars.contains(&c) {
-                '_'
-            } else {
-                c
-            }
-        })
-        .collect();
-
-    sanitized
 }
 
 /// Finds a chunk in the dataset that starts with the same letter as the key, returning the found value
@@ -174,4 +150,16 @@ pub fn get_cover_dir() -> PathBuf {
     }
 
     cache_dir
+}
+pub fn is_file_empty<P: AsRef<Path>>(file_path: P) -> bool {
+    match fs::metadata(&file_path) {
+        Ok(metadata) => metadata.len() == 0,
+        Err(_) => {
+            println!(
+                "Failed to retrieve metadata for file: {}",
+                file_path.as_ref().display()
+            );
+            false
+        }
+    }
 }
