@@ -3,9 +3,13 @@ use std::{
     fs::{self, create_dir_all, remove_dir_all, remove_file, File, OpenOptions},
     io::{BufReader, Error, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
+    sync::Mutex,
 };
 
-use tauri::api::path::{app_cache_dir, app_config_dir};
+use tauri::{
+    api::path::{app_cache_dir, app_config_dir},
+    State,
+};
 
 use crate::{
     book::{
@@ -61,9 +65,16 @@ impl BookWorker {
     pub fn import_application_settings(&mut self, new_book_cache: HashMap<String, String>) {
         self.application_user_settings = new_book_cache
     }
-    fn backup_current_books(&mut self) {
+    pub fn backup_current_books(&mut self, write_dir: Option<String>) {
+        let json_dump_path = match write_dir {
+            Some(path) => Some(PathBuf::from(path)),
+            None => match get_dump_json_path() {
+                Some(json_path) => Some(json_path),
+                None => None,
+            },
+        };
         match &self.get_book_cache().get_books() {
-            Some(all_books) => match get_dump_json_path() {
+            Some(all_books) => match json_dump_path {
                 Some(path) => {
                     let file = File::create(path)
                         .expect("JSON backup path should be defined, and a valid json file");
@@ -82,7 +93,7 @@ impl BookWorker {
     // run import method
     pub fn repair_db(&mut self) {
         if !check_db_health() {
-            self.backup_current_books();
+            self.backup_current_books(None);
             if let Some(backup_path) = get_dump_json_path() {
                 if let Some(string_omg) = backup_path.into_os_string().into_string().ok() {
                     _ = import_book_json(Some(string_omg));
@@ -222,6 +233,13 @@ impl BookWorker {
 
         self.get_book_cache().get_books().cloned()
     }
+}
+
+#[tauri::command]
+pub fn backup_books_to_json(path: String, state: State<'_, Mutex<BookWorker>>) {
+    let mut book_worker = state.lock().unwrap();
+
+    book_worker.backup_current_books(Some(path));
 }
 
 pub fn get_settings_path() -> PathBuf {

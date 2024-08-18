@@ -16,7 +16,7 @@ use app::{
     },
 };
 use book_item::{get_all_books, BookCache};
-use book_worker::{load_settings, BookWorker};
+use book_worker::{backup_books_to_json, load_settings, BookWorker};
 use database::import_book_json;
 use tokio::runtime::Runtime;
 
@@ -52,6 +52,7 @@ fn main() {
             shelf_settings_values,
             import_book_json_comm,
             reset_configuration,
+            backup_books_to_json,
             get_cover_location_command
         ])
         .run(tauri::generate_context!())
