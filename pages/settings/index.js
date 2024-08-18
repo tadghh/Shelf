@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable camelcase */
+import { open } from "@tauri-apps/api/dialog";
 
 import { invoke } from "@tauri-apps/api/tauri";
 import { useEffect, useState } from "react";
@@ -36,6 +37,18 @@ export default function Settings() {
         notify(notificationState.ERROR, "An error occured when resetting.");
       });
   };
+  const importOldHandler = (data) => {
+    invoke("import_book_json_comm", { backup_path: data })
+      .then(() => {
+        notify(notificationState.SUCCESS, "Imported old books successfully.");
+      })
+      .catch((error) => {
+        notify(
+          notificationState.ERROR,
+          "An error occured while importing the old books.",
+        );
+      });
+  };
   return (
     <div className="duration-550 ml-20 min-h-screen animate-fade flex-col px-5 py-2 transition-opacity ease-in-out">
       {settingsItemsEnum.length != 0 ? (
@@ -61,14 +74,34 @@ export default function Settings() {
             settingsConfigString={settingsItemsEnum.COVER_BACKGROUND}
             settingsType={SettingsTypes.TOGGLE}
           />
-          <div className="ml-auto mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
-            <button
-              className="rounded-lg border-4 border-white bg-red-700 px-5 py-2.5 text-sm font-medium text-white transition-colors duration-300 ease-in-out hover:border-red-500 hover:bg-red-800"
-              type="button"
-              onClick={resetHandler}
-            >
-              Reset settings
-            </button>
+          <div className="flex w-full justify-between">
+            <div className="mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
+              <button
+                className="font-sm rounded-lg border-4 border-white bg-red-700 px-5 py-1 text-sm font-bold text-white transition-colors duration-300 ease-in-out hover:border-red-500 hover:bg-red-800"
+                type="button"
+                onClick={() => {
+                  open({
+                    directory: false,
+                    multiple: false,
+                  }).then((data) => {
+                    if (data) {
+                      importOldHandler(data);
+                    }
+                  });
+                }}
+              >
+                Import old books
+              </button>
+            </div>
+            <div className="mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
+              <button
+                className="rounded-lg border-4 border-white bg-red-700 px-5 py-2.5 text-sm font-medium text-white transition-colors duration-300 ease-in-out hover:border-red-500 hover:bg-red-800"
+                type="button"
+                onClick={resetHandler}
+              >
+                Reset settings
+              </button>
+            </div>
           </div>
         </>
       ) : (

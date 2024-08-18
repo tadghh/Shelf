@@ -68,40 +68,44 @@ fn append_date_to_filename(file_path: &str) -> String {
     }
 }
 
-pub fn import_book_json() -> Result<(), std::io::Error> {
+#[tauri::command]
+pub fn import_book_json_comm(backup_path: String) {
+    _ = import_book_json(Some(backup_path));
+}
+
+pub fn import_book_json(backup_path: Option<String>) -> Result<(), std::io::Error> {
     // Since the db file doesnt exist we need to remake the table, sqlx will handle recreating the file and all that
     _ = create_books_table();
-    if let Some(backup_path) = get_dump_json_path() {
-        //let path = Path::new(&backup_path);
+    let backup_path = match backup_path {
+        Some(path) => path,
+        None => match get_dump_json_path() {
+            Some(json_path) => json_path.into_os_string().into_string().unwrap(),
+            None => return Ok(()),
+        },
+    };
 
-        if Path::new(&backup_path).exists() {
-            let file = File::open(&backup_path)?;
-            let old_books: Vec<Book> =
-                serde_json::from_reader(BufReader::new(file)).unwrap_or_else(|_| Vec::new());
+    if Path::new(&backup_path).exists() {
+        let file = File::open(&backup_path)?;
+        let old_books: Vec<Book> =
+            serde_json::from_reader(BufReader::new(file)).unwrap_or_else(|_| Vec::new());
 
-            match insert_book_db_batch(&old_books) {
-                Ok(()) => {
-                    println!("Restored backup containing {:?} books!", &old_books.len());
-                    let spent_file_name = append_date_to_filename(
-                        &backup_path
-                            .to_str()
-                            .expect("how did the backup file vanish"),
-                    );
-                    fs::rename(&backup_path, spent_file_name)?;
-                }
-                Err(e) => {
-                    println!(
-                        "Hurray, something went wrong while restoring the backup {:?}",
-                        e
-                    );
-                }
-            };
-        } else {
-            println!("Backup path does not exist");
-        }
+        match insert_book_db_batch(&old_books) {
+            Ok(()) => {
+                println!("Restored backup containing {:?} books!", &old_books.len());
+                let spent_file_name = append_date_to_filename(&backup_path);
+                fs::rename(&backup_path, spent_file_name)?;
+            }
+            Err(e) => {
+                println!(
+                    "Hurray, something went wrong while restoring the backup {:?}",
+                    e
+                );
+            }
+        };
     } else {
-        println!("Backup path not provided");
+        println!("Backup path does not exist");
     }
+
     Ok(())
 }
 

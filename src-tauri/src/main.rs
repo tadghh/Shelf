@@ -7,6 +7,7 @@ use std::sync::Mutex;
 use app::*;
 
 use app::book::bookio::initialize_books;
+use app::database::import_book_json_comm;
 use app::{
     book_item::{get_cover_location_command, load_book},
     shelf::{
@@ -28,7 +29,9 @@ fn main() {
     });
 
     // Now we can import a backup file if it exists
-    _ = import_book_json();
+
+    _ = import_book_json(None);
+
     let current_books = get_all_books().ok();
 
     let mut worker = BookWorker::new(load_settings(), BookCache::new(current_books));
@@ -47,6 +50,7 @@ fn main() {
             change_configuration_option,
             get_configuration_option,
             shelf_settings_values,
+            import_book_json_comm,
             reset_configuration,
             get_cover_location_command
         ])

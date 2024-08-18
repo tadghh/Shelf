@@ -83,7 +83,11 @@ impl BookWorker {
     pub fn repair_db(&mut self) {
         if !check_db_health() {
             self.backup_current_books();
-            _ = import_book_json();
+            if let Some(backup_path) = get_dump_json_path() {
+                if let Some(string_omg) = backup_path.into_os_string().into_string().ok() {
+                    _ = import_book_json(Some(string_omg));
+                }
+            }
         }
     }
 
@@ -130,6 +134,7 @@ impl BookWorker {
         }
     }
 
+    // concat method
     pub fn update_book_cache(&mut self, new_books: Option<Vec<Book>>) {
         self.current_book_cache.update_books(new_books)
     }
