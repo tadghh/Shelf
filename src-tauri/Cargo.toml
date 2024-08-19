@@ -1,5 +1,5 @@
 [package]
-authors     = ["Tadgh Henry"]
+authors     =["Tadgh Henry"]
 default-run ="app"
 description ="A place to store and read your books"
 edition     ="2021"
@@ -7,12 +7,12 @@ license     =""
 name        ="app"
 repository  ="https://github.com/tadghh/Shelf/"
 rust-version="1.72.1"
-version     ="0.1.2"
+version     ="1.1.2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build= { version="1.5.0", features= [] }
+tauri-build={ version="1.5.0", features=[] }
 
 [dependencies]
 base64="*"
@@ -21,10 +21,10 @@ path-slash="*"
 rand="*"
 rayon="*"
 regex="*"
-serde= { version="1.0", features= ["derive"] }
+serde={ version="1.0", features=["derive"] }
 serde_json="*"
-sqlx= { version="0.8.0", features= ["runtime-tokio", "sqlite"] }
-tauri= { version="1.5.1", features= [
+sqlx={ version="0.8.0", features=["runtime-tokio", "sqlite"] }
+tauri={ version="1.5.1", features=[
 	"dialog-open",
 	"protocol-asset",
 	"window-set-min-size",
@@ -32,17 +32,17 @@ tauri= { version="1.5.1", features= [
 	"window-set-title",
 ] }
 tauri-utils="1.5.0"
-time= { version="0.3.36", features= ["formatting"] }
+time={ version="0.3.36", features=["formatting"] }
 tokio="1.39.2"
 xmltree="*"
 
 [features]
 # by default Tauri runs in production mode
 # when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL
-default= ["custom-protocol"]
+default=["custom-protocol"]
 # this feature is used for production builds where `devPath` points to the filesystem
 # DO NOT remove this
-custom-protocol= ["tauri/custom-protocol"]
+custom-protocol=["tauri/custom-protocol"]
 [profile.dev.package."*"]
 opt-level=3
 [profile.dev]
