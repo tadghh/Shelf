@@ -14,6 +14,7 @@ export default function SettingsItem({
   const [settingsItemStatus, setSettingsItemStatus] = useState("");
   const Component = getComponentForEnum(settingsType);
 
+  // TODO fix this sh
   const updateOption = ({ value }) => {
     invoke("change_configuration_option", {
       option_name: settingsConfigString,

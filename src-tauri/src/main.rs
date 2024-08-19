@@ -7,19 +7,36 @@ use std::sync::Mutex;
 use app::*;
 
 use app::book::bookio::initialize_books;
+use app::database::import_book_json_comm;
 use app::{
-    book_item::load_book,
+    book_item::{get_cover_location_command, load_book},
     shelf::{
         change_configuration_option, get_configuration_option, reset_configuration,
         shelf_settings_values,
     },
 };
-use book_item::BookCache;
-use book_worker::{load_settings, BookWorker};
-fn main() {
-    let mut worker = BookWorker::new(load_settings(), None);
+use book_item::{get_all_books, BookCache};
+use book_worker::{backup_books_to_json, load_settings, BookWorker};
+use database::import_book_json;
+use tokio::runtime::Runtime;
 
-    let book_cache = BookCache::new(worker.initialize_books(), worker.get_json_path());
+fn main() {
+    let runtime = Runtime::new().expect("Failed to create Tokio runtime");
+
+    // Block on the async function `init_db`
+    runtime.block_on(async {
+        database::init_db().await;
+    });
+
+    // Now we can import a backup file if it exists
+
+    _ = import_book_json(None);
+
+    let current_books = get_all_books().ok();
+
+    let mut worker = BookWorker::new(load_settings(), BookCache::new(current_books));
+
+    let book_cache = BookCache::new(worker.initialize_books());
 
     worker.set_book_cache(book_cache);
 
@@ -33,7 +50,10 @@ fn main() {
             change_configuration_option,
             get_configuration_option,
             shelf_settings_values,
-            reset_configuration
+            import_book_json_comm,
+            reset_configuration,
+            backup_books_to_json,
+            get_cover_location_command
         ])
         .run(tauri::generate_context!())
         .expect("shelf seems to have fallen over");

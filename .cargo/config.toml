@@ -1,7 +1,9 @@
 [env]
+BACKUP_FILENAME        ="backup.json"
 CACHE_F_NAME           ="book_cache.json"
 CONFIG_FLDR_NAME       ="config"
 COVER_IMAGE_FOLDER_NAME="cover_cache"
+DATABASE_FILENAME      ="book.db"
 DEFAULT_COVER_NAME     ="error.jpg"
 SETTINGS_F_NAME        ="shelf_settings.conf"
 # static COVER_IMAGE_FOLDER_NAME: &str = "cover_cache";

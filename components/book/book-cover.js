@@ -3,14 +3,31 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/tauri";
 
 export default function BookCover({ book }) {
   const router = useRouter();
   const [coverUrl, setCoverUrl] = useState();
 
   useEffect(() => {
-    setCoverUrl(convertFileSrc(book.cover_location));
-  }, []);
+    async function fetchCoverLocation() {
+      try {
+        const coverLocation = await invoke("get_cover_location_command", {
+          book,
+        });
+        const convertedCoverUrl = convertFileSrc(coverLocation);
+        setCoverUrl(convertedCoverUrl);
+        console.log("Cover Location:", coverLocation);
+      } catch (error) {
+        console.error("Error fetching cover location:", error);
+      }
+    }
+
+    if (book) {
+      console.log("book");
+      fetchCoverLocation(); // Call the async function without await here
+    }
+  }, [book]);
 
   return (
     <Link

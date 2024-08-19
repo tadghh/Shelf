@@ -1,67 +1,23 @@
 use epub::doc::EpubDoc;
 use regex::Regex;
 
-use tauri::{generate_context, Config};
+use sqlx::Sqlite;
+use tauri::{api::path::app_cache_dir, generate_context, Config};
 
 use crate::book_item::Book;
 
-use std::{cmp::Ordering, collections::HashMap, fs::File, io::BufReader};
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    fs::{self, create_dir_all, File},
+    io::BufReader,
+    path::{Path, PathBuf},
+};
 
 /// Gets the current tauri context.
 pub fn current_context() -> Config {
     generate_context!().config().clone()
 }
-/// Removes special characters from a given string and returns it
-/// Some book titles contain characters that aren't compatible when used as filenames
-///
-/// # Arguments
-///
-/// * `filename` - The filename to sanitize
-///
-pub fn sanitize_windows_filename(filename: String) -> String {
-    let disallowed_chars = vec!['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
-
-    let sanitized: String = filename
-        .chars()
-        .map(|c| {
-            if disallowed_chars.contains(&c) {
-                '_'
-            } else {
-                c
-            }
-        })
-        .collect();
-
-    sanitized
-}
-
-/// Encodes the data of a give file, returning the encoded data
-/// This is to get around CORS issues
-///
-/// # Arguments
-///
-/// * `filepath` - The file to encode
-///
-// #[tauri::command(rename_all = "snake_case")]
-// pub fn base64_encode_file(file_path: &str) -> Result<String, String> {
-//     //TODO Archive this
-//     let mut buffer = Vec::new();
-
-//     //Refactor this
-//     let mut file = match File::open(file_path) {
-//         Ok(file) => file,
-//         Err(_) => {
-//             return Err("There was an issue opening the file".to_string());
-//         }
-//     };
-
-//     file.read_to_end(&mut buffer)
-//         .expect("There was an issue with the buffer");
-
-//     // Encode the file data as base64
-//     let base64_data = general_purpose::STANDARD.encode(&buffer);
-//     Ok(base64_data)
-// }
 
 /// Finds a chunk in the dataset that starts with the same letter as the key, returning the found value
 /// One this chunk is found we binary search within that section, theoretically faster
@@ -167,4 +123,43 @@ pub fn check_epub_resource(
             key_regex.is_match(key) && mime_regex.is_match(&doc.get_resource(key).unwrap().1)
         })
         .map(|key| key.to_owned())
+}
+
+pub fn create_batch_query(batch_books: Vec<&Book>) -> Result<String, ()> {
+    let mut query_builder: sqlx::QueryBuilder<Sqlite> =
+        sqlx::QueryBuilder::new("INSERT INTO books (cover_location, book_location, title) ");
+
+    //TODO Might hit bind limits if users 'accumulates' books
+    query_builder.push_values(batch_books.iter(), |mut b, book| {
+        b.push_bind(book.get_cover_location())
+            .push_bind(book.get_book_location())
+            .push_bind(book.get_title());
+    });
+
+    let query = query_builder.into_sql();
+    println!("{:?}", query);
+    Ok(query)
+}
+
+pub fn get_cover_dir() -> PathBuf {
+    let mut cache_dir = app_cache_dir(&current_context()).expect("Failed to get cache directory");
+    cache_dir.push("cache");
+    cache_dir.push(env!("COVER_IMAGE_FOLDER_NAME"));
+    if let Err(err) = create_dir_all(&cache_dir) {
+        eprintln!("Error creating {:?} directory: {:?}", err, cache_dir);
+    }
+
+    cache_dir
+}
+pub fn is_file_empty<P: AsRef<Path>>(file_path: P) -> bool {
+    match fs::metadata(&file_path) {
+        Ok(metadata) => metadata.len() == 0,
+        Err(_) => {
+            println!(
+                "Failed to retrieve metadata for file: {}",
+                file_path.as_ref().display()
+            );
+            false
+        }
+    }
 }

@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable camelcase */
+import { open } from "@tauri-apps/api/dialog";
 
 import { invoke } from "@tauri-apps/api/tauri";
 import { useEffect, useState } from "react";
@@ -19,6 +20,7 @@ export default function Settings() {
   };
 
   useEffect(() => {
+    // TODO what is this?
     updateSettingsItems();
   }, []);
 
@@ -32,7 +34,34 @@ export default function Settings() {
         );
       })
       .catch((error) => {
-        notify(notificationState.ERROR, "An error occured when resetting.");
+        notify(notificationState.ERROR, "An error occurred when resetting.");
+      });
+  };
+  const importOldHandler = (data) => {
+    invoke("import_book_json_comm", { backup_path: data })
+      .then(() => {
+        notify(notificationState.SUCCESS, "Imported old books successfully.");
+      })
+      .catch((error) => {
+        notify(
+          notificationState.ERROR,
+          `An error occurred while importing the old books.  ${error}`,
+        );
+      });
+  };
+  const exportCurrentDBHandler = (data) => {
+    invoke("backup_books_to_json", { path: data })
+      .then(() => {
+        notify(
+          notificationState.SUCCESS,
+          "Exported current books successfully.",
+        );
+      })
+      .catch((error) => {
+        notify(
+          notificationState.ERROR,
+          `An error occurred while exporting the current books. ${error}`,
+        );
       });
   };
   return (
@@ -60,14 +89,54 @@ export default function Settings() {
             settingsConfigString={settingsItemsEnum.COVER_BACKGROUND}
             settingsType={SettingsTypes.TOGGLE}
           />
-          <div className="ml-auto mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
-            <button
-              className="rounded-lg border-4 border-white bg-red-700 px-5 py-2.5 text-sm font-medium text-white transition-colors duration-300 ease-in-out  hover:border-red-500 hover:bg-red-800"
-              type="button"
-              onClick={resetHandler}
-            >
-              Reset settings
-            </button>
+          <div className="flex w-full justify-between">
+            <div className="flex justify-between space-x-4">
+              <div className="mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
+                <button
+                  className="font-sm rounded-lg border-4 border-white bg-red-700 px-5 py-1 text-sm font-bold text-white transition-colors duration-300 ease-in-out hover:border-red-500 hover:bg-red-800"
+                  type="button"
+                  onClick={() => {
+                    open({
+                      directory: false,
+                      multiple: false,
+                    }).then((data) => {
+                      if (data) {
+                        importOldHandler(data);
+                      }
+                    });
+                  }}
+                >
+                  Import old books
+                </button>
+              </div>
+              <div className="mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
+                <button
+                  className="font-sm rounded-lg border-4 border-white bg-yellow-700 px-5 py-1 text-sm font-bold text-white transition-colors duration-300 ease-in-out hover:border-yellow-500 hover:bg-yellow-800"
+                  type="button"
+                  onClick={() => {
+                    open({
+                      directory: true,
+                      multiple: false,
+                    }).then((data) => {
+                      if (data) {
+                        exportCurrentDBHandler(data);
+                      }
+                    });
+                  }}
+                >
+                  Export current books
+                </button>
+              </div>
+            </div>
+            <div className="mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
+              <button
+                className="rounded-lg border-4 border-white bg-red-700 px-5 py-2.5 text-sm font-medium text-white transition-colors duration-300 ease-in-out hover:border-red-500 hover:bg-red-800"
+                type="button"
+                onClick={resetHandler}
+              >
+                Reset settings
+              </button>
+            </div>
           </div>
         </>
       ) : (
