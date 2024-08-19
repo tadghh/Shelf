@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File},
     io::BufReader,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use sqlx::sqlite::{
@@ -53,7 +53,8 @@ pub fn check_db_health() -> bool {
     db_path.exists() && !is_file_empty(db_path)
 }
 
-fn append_date_to_filename(file_path: &str) -> String {
+// Path includes the file name
+pub fn append_date_to_filename(file_path: &str) -> String {
     // Get the current date in YYYY-MM-DD format
     let format = parse("[year][month][day]").unwrap();
 
@@ -70,40 +71,40 @@ fn append_date_to_filename(file_path: &str) -> String {
 
 #[tauri::command]
 pub fn import_book_json_comm(backup_path: String) {
-    _ = import_book_json(Some(backup_path));
+    _ = import_book_json(Some(PathBuf::from(backup_path)));
 }
-
-pub fn import_book_json(backup_path: Option<String>) -> Result<(), std::io::Error> {
-    // Since the db file doesnt exist we need to remake the table, sqlx will handle recreating the file and all that
+pub fn import_book_json(backup_path: Option<PathBuf>) -> Result<(), std::io::Error> {
+    // Since the db file doesn't exist, we need to remake the table. sqlx will handle recreating the file.
     _ = create_books_table();
-    let backup_path = match backup_path {
-        Some(path) => path,
-        None => match get_dump_json_path() {
-            Some(json_path) => json_path.into_os_string().into_string().unwrap(),
-            None => return Ok(()),
-        },
-    };
 
-    if Path::new(&backup_path).exists() {
-        let file = File::open(&backup_path)?;
-        let old_books: Vec<Book> =
-            serde_json::from_reader(BufReader::new(file)).unwrap_or_else(|_| Vec::new());
+    let backup_path = backup_path.or_else(get_dump_json_path);
 
-        match insert_book_db_batch(&old_books) {
-            Ok(()) => {
-                println!("Restored backup containing {:?} books!", &old_books.len());
-                let spent_file_name = append_date_to_filename(&backup_path);
-                fs::rename(&backup_path, spent_file_name)?;
-            }
-            Err(e) => {
-                println!(
-                    "Hurray, something went wrong while restoring the backup {:?}",
-                    e
-                );
-            }
-        };
+    if let Some(backup_path) = backup_path {
+        if Path::new(&backup_path).exists() {
+            let file = File::open(&backup_path)?;
+            let old_books: Vec<Book> =
+                serde_json::from_reader(BufReader::new(file)).unwrap_or_else(|_| Vec::new());
+
+            match insert_book_db_batch(&old_books) {
+                Ok(()) => {
+                    println!("Restored backup containing {:?} books!", &old_books.len());
+
+                    let spent_file_name = append_date_to_filename(backup_path.to_str().unwrap());
+
+                    fs::rename(&backup_path, spent_file_name)?;
+                }
+                Err(e) => {
+                    println!(
+                        "Hurray, something went wrong while restoring the backup {:?}",
+                        e
+                    );
+                }
+            };
+        } else {
+            println!("Backup path does not exist");
+        }
     } else {
-        println!("Backup path does not exist");
+        println!("No valid backup path provided or found");
     }
 
     Ok(())

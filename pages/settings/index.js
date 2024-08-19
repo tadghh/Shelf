@@ -34,7 +34,7 @@ export default function Settings() {
         );
       })
       .catch((error) => {
-        notify(notificationState.ERROR, "An error occured when resetting.");
+        notify(notificationState.ERROR, "An error occurred when resetting.");
       });
   };
   const importOldHandler = (data) => {
@@ -45,21 +45,22 @@ export default function Settings() {
       .catch((error) => {
         notify(
           notificationState.ERROR,
-          "An error occured while importing the old books.",
+          `An error occurred while importing the old books.  ${error}`,
         );
       });
   };
   const exportCurrentDBHandler = (data) => {
-    // TODO name of export
-    // TODO export json is wrapped in array... why?
-    invoke("backup_books_to_json", { path: data + "/export.json" })
+    invoke("backup_books_to_json", { path: data })
       .then(() => {
-        notify(notificationState.SUCCESS, "Exported old books successfully.");
+        notify(
+          notificationState.SUCCESS,
+          "Exported current books successfully.",
+        );
       })
       .catch((error) => {
         notify(
           notificationState.ERROR,
-          `An error occured while importing the old books.${error}`,
+          `An error occurred while exporting the current books. ${error}`,
         );
       });
   };
@@ -89,7 +90,7 @@ export default function Settings() {
             settingsType={SettingsTypes.TOGGLE}
           />
           <div className="flex w-full justify-between">
-            <div className="flex justify-between">
+            <div className="flex justify-between space-x-4">
               <div className="mt-2 flex h-16 w-44 items-center justify-center rounded-xl border bg-white p-4">
                 <button
                   className="font-sm rounded-lg border-4 border-white bg-red-700 px-5 py-1 text-sm font-bold text-white transition-colors duration-300 ease-in-out hover:border-red-500 hover:bg-red-800"
@@ -123,7 +124,7 @@ export default function Settings() {
                     });
                   }}
                 >
-                  Export book DB
+                  Export current books
                 </button>
               </div>
             </div>

@@ -12,15 +12,12 @@ use tauri::{
 };
 
 use crate::{
-    book::{
-        bookio::create_book_vec,
-        util::{current_context, get_cover_dir},
-    },
+    book::{bookio::create_book_vec, util::current_context},
     book_item::{
         create_books_table, drop_books_from_table, get_all_books, insert_book_db_batch, Book,
         BookCache,
     },
-    database::{check_db_health, import_book_json},
+    database::{append_date_to_filename, check_db_health, import_book_json},
     shelf::shelf_settings_values,
 };
 
@@ -50,7 +47,7 @@ impl BookWorker {
     }
 
     pub fn reset(&mut self) {
-        _ = remove_dir_all(get_cover_dir());
+        _ = remove_dir_all(get_cache_dir());
 
         //Delete settings file
         //If its an error thats okay because we remake the settings file anyway
@@ -65,13 +62,22 @@ impl BookWorker {
     pub fn import_application_settings(&mut self, new_book_cache: HashMap<String, String>) {
         self.application_user_settings = new_book_cache
     }
+
     pub fn backup_current_books(&mut self, write_dir: Option<String>) {
         let json_dump_path = match write_dir {
-            Some(path) => Some(PathBuf::from(path)),
-            None => match get_dump_json_path() {
-                Some(json_path) => Some(json_path),
-                None => None,
-            },
+            Some(path) => {
+                let mut export_file_name = PathBuf::from(path);
+                export_file_name = export_file_name.join("export.json");
+
+                // is returned a string here
+                // export_file_name =
+
+                match export_file_name.to_str() {
+                    Some(valid_str) => Some(PathBuf::from(append_date_to_filename(valid_str))),
+                    None => None,
+                }
+            }
+            None => get_dump_json_path(),
         };
         match &self.get_book_cache().get_books() {
             Some(all_books) => match json_dump_path {
@@ -84,7 +90,19 @@ impl BookWorker {
                 }
                 None => println!("Failed to make json dump file"),
             },
-            None => todo!(),
+            None => match get_all_books() {
+                Ok(db_books) => match json_dump_path {
+                    Some(path) => {
+                        let file = File::create(path)
+                            .expect("JSON backup path should be defined, and a valid json file");
+
+                        serde_json::to_writer(file, &db_books)
+                            .expect("failed to write to backup json file!");
+                    }
+                    None => println!("Failed to make json dump file"),
+                },
+                Err(_) => println!("Failed to create backup, no books in memory or the database"),
+            },
         }
     }
 
@@ -94,11 +112,8 @@ impl BookWorker {
     pub fn repair_db(&mut self) {
         if !check_db_health() {
             self.backup_current_books(None);
-            if let Some(backup_path) = get_dump_json_path() {
-                if let Some(string_omg) = backup_path.into_os_string().into_string().ok() {
-                    _ = import_book_json(Some(string_omg));
-                }
-            }
+
+            _ = import_book_json(None);
         }
     }
 
@@ -235,6 +250,8 @@ impl BookWorker {
     }
 }
 
+// Functions that are related but need to be accessed elsewhere
+
 #[tauri::command]
 pub fn backup_books_to_json(path: String, state: State<'_, Mutex<BookWorker>>) {
     let mut book_worker = state.lock().unwrap();
@@ -307,6 +324,7 @@ pub fn create_default_settings() -> Result<File, Error> {
         let setting_str = format!("{}={}\n", lowercase_name, default_value);
         file.write_all(setting_str.as_bytes())?;
     }
+
     Ok(file)
 }
 
