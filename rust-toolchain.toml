@@ -1,0 +1,5 @@
+[toolchain]
+channel   ="1.80.0"
+components=["rust-std", "rustc-dev", "rustfmt"]
+profile   ="minimal"
+#targets   =["thumbv2-none-eabi", "wasm32-unknown-unknown"]
