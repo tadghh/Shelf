@@ -1,15 +1,14 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "build": {
     "beforeBuildCommand": "npm run build && npm run export",
     "beforeDevCommand": "npm run dev",
     "devPath": "http://localhost:3000",
-    "distDir": "./out",
+
     "withGlobalTauri": true
   },
   "package": {
     "productName": "Shelf",
-    "version": "0.1.2"
+    "version": "0.2.2"
   },
   "tauri": {
     "allowlist": {

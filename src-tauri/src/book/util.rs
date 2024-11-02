@@ -14,11 +14,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Gets the current tauri context.
-pub fn current_context() -> Config {
-    generate_context!().config().clone()
-}
-
 /// Finds a chunk in the dataset that starts with the same letter as the key, returning the found value
 /// One this chunk is found we binary search within that section, theoretically faster
 ///
@@ -162,4 +157,9 @@ pub fn is_file_empty<P: AsRef<Path>>(file_path: P) -> bool {
             false
         }
     }
+}
+
+/// Gets the current tauri context.
+pub fn current_context() -> Config {
+    generate_context!().config().clone()
 }
